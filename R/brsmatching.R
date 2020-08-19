@@ -42,7 +42,7 @@ enumerate_edges_and_compute_distances <- function(df, id = "id", time = "time", 
   # TODO: check treatment times are either 0, NA, or match times
 
   # pre-compute covariance matrix
-  cov_mat <- cov(model.matrix(~ 0 + ., data = df[, covariates]))
+  cov_mat <- stats::cov(stats::model.matrix(~ 0 + ., data = df[, covariates]))
   cov_mat_inv <- MASS::ginv(cov_mat)
 
   split_id <- split(df, factor(df[[id]]))
@@ -57,7 +57,7 @@ enumerate_edges_and_compute_distances <- function(df, id = "id", time = "time", 
     df_at_trt <- df[df[[time]] == trt_time_i - 1, ] # TODO: rename to reflect this is pre-treatment data
 
     if(i %in% df_at_trt[[id]]) {
-      covariates_at_trt <- model.matrix(~ 0 + ., data = df_at_trt[, covariates])
+      covariates_at_trt <- stats::model.matrix(~ 0 + ., data = df_at_trt[, covariates])
       dists <- stats::mahalanobis(covariates_at_trt,
                                   covariates_at_trt[which(df_at_trt[[id]] == i),],
                                   cov = cov_mat_inv,
@@ -104,7 +104,8 @@ enumerate_edges_and_compute_distances <- function(df, id = "id", time = "time", 
 #' )
 #'
 #' balance_covariates <- c("X1", "X2", "X3", "X4")
-#' bal <- balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates = balance_covariates)
+#' bal <- balance_columns(df, "hhidpn", "wave", "treatment_time",
+#'                        balance_covariates = balance_covariates)
 #'
 #' @export
 balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time", balance_covariates = NULL) {
@@ -126,7 +127,7 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
   trt_at_trt_time_df <- df[df[[time]] == df[[trt_time]], ]
   quantiles <- apply(trt_at_trt_time_df[, numeric_cov],
                      MARGIN = 2,
-                     quantile,
+                     stats::quantile,
                      probs = c(1/3, 2/3))
   # balance on numeric columns
   out <- list()
@@ -137,7 +138,7 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
   }
   bal_numeric <- do.call(cbind, out)
   # balance on character and factor columns
-  bal_factor <- model.matrix(~ 0 + ., data = df[,factor_cov, drop = FALSE])
+  bal_factor <- stats::model.matrix(~ 0 + ., data = df[,factor_cov, drop = FALSE])
 
   cbind(
     id = df[[id]],
@@ -147,6 +148,231 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
   )
 }
 
+
+#' Balanced risk set matching with the Gurobi optimizer interface
+#'
+#' TODO: add description
+#'
+#' @param n_pairs number of pairs desired from matching
+#' @param edges data frame with columns "trt_id", "all_id", "trt_time", "dist";
+#'   for example, the output from a call to \code{enumerate_edges_and_compute_distances()}
+#' @param bal_all matrix with columns "id", "time", and additional balance
+#'   columns; for example, the output from a call to \code{balance_columns()};
+#'   defaults to NULL, indicating balance is not used.
+#' @param optimizer "gurobi" or "glpk". Specifies which optimizer output to use;
+#'   defaults to "gurobi".
+#' @param verbose logical; if TRUE, will print some useful information for
+#'   potentially long model calls; defaults to FALSE
+#' @param balance When TRUE, a balanced risk set matching model will be built.
+#'   When FALSE, or when bal_all = NULL, balancing constraints will not be
+#'   included.
+#'
+#' @return TODO: add return description
+#'
+#' @examples
+#' df <- data.frame(
+#'   hhidpn = rep(1:3, each = 3),
+#'   wave = rep(1:3, 3),
+#'   treatment_time = rep(c(2,3,NA), each = 3),
+#'   X1 = c(2,2,2,3,3,3,9,9,9),
+#'   X2 = rep(c("a","a","b"), each = 3),
+#'   X3 = c(9,4,5,6,7,2,3,4,8),
+#'   X4 = c(8,9,4,5,6,7,2,3,4)
+#' )
+#' edges <- enumerate_edges_and_compute_distances(df, "hhidpn", "wave", "treatment_time")
+#' bal <- balance_columns(df, "hhidpn", "wave", "treatment_time")
+#' n_unique_id <- length(unique(df$hhidpn))
+#'
+#' model <- rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = TRUE)
+#'
+#' @export
+rsm_optimization_model <- function(n_pairs,
+                                   edges,
+                                   bal_all = NULL,
+                                   optimizer = "gurobi",
+                                   verbose = FALSE,
+                                   balance = TRUE) {
+
+  if (is.null(bal_all)) balance <- FALSE
+  if (balance) {
+    # TODO: check that no columns have the .trt or .all name in them already. This is unlikely
+    bal_all <- as.data.frame(bal_all)
+    edges <- merge(edges, bal_all, by.x = c("trt_id", "trt_time"), by.y = c("id", "time"))
+    edges <- merge(edges, bal_all, by.x = c("all_id", "trt_time"), by.y = c("id", "time"),
+                 suffixes = c(".trt", ".all"))
+  }
+
+  S <- n_pairs # number of pairs
+  K <- ifelse(balance, ncol(bal_all)-2, 0) # number of balancing constraints TODO: maybe rename this as n_gp, n_gm
+  E <- nrow(edges) # number of edges  TODO: maybe rename this as n_f
+  n_vars <- E + 2*K
+
+  delta <- edges$dist
+  lambda_k <- sum(delta) + 100
+
+  ## A.2 - There are S matched sets
+  A.2 <- c(rep(1, E), rep(0, 2*K))
+  A.2 <- rbind(A.2, -A.2)
+
+  ## A.3 - each unit has at most one edge
+  # all_ids <- unique(edges$all_id)
+  all_ids <- unique(c(edges$all_id, edges$trt_id))
+  edge_ids <- edges[, c("trt_id", "all_id")]
+
+  j_ind <- lapply(all_ids, function(id) {
+    # TODO: might be able to vectorize this?
+    # if (verbose & (id %% 50 == 0)) { cat("  i:", id, "/", length(all_ids), "\n") }
+    # id <- all_ids[x]
+    # pairs_with_hhidpn_i <- union(
+    #   which(tmp$treated_units == hhidpn_i),
+    #   which(tmp$all_units == hhidpn_i)
+    # )
+    which(rowSums(edge_ids == id) == 1) # rows where either treated == hhidpn or all == hhidpn
+    # TODO: use microbenchmark to try this a few different ways.
+  })
+  i_ind <- mapply(
+    function(x,y) {
+      rep.int(y, times = length(x))
+    },
+    j_ind,
+    1:length(j_ind),
+    SIMPLIFY = FALSE
+  )
+  j_ind <- do.call(c, j_ind)
+  i_ind <- do.call(c, i_ind)
+
+  A.3 <- Matrix::sparseMatrix(i_ind, j_ind,
+                              dims = c(length(all_ids), n_vars))
+
+  # # I think this is faster....
+  # sparse_inds <- lapply(1:length(all_ids), function(i) {
+  #   # TODO: might be able to vectorize this?
+  #   if (verbose & (i %% 50 == 0)) { cat("  i:", i, "/", length(all_ids), "\n") }
+  #   id <- all_ids[i]
+  #   # pairs_with_hhidpn_i <- union(
+  #   #   which(tmp$treated_units == hhidpn_i),
+  #   #   which(tmp$all_units == hhidpn_i)
+  #   # )
+  #   active_rows <- which(rowSums(edge_ids == id) == 1) # rows where either treated == hhidpn or all == hhidpn
+  #   rbind(i = rep(i, length(active_rows)),
+  #         j = active_rows)
+  #
+  #   # TODO: use microbenchmark to try this a few different ways.
+  # })
+  # sparse_inds <- do.call(cbind, sparse_inds)
+  # A.3 <- Matrix::sparseMatrix(sparse_inds["i",], sparse_inds["j",],
+  #                             # x = 1,
+  #                             dims = c(length(all_ids), n_vars))
+  #
+
+  ## A.4 and A.5 - balance constraints
+  if (balance) {
+    B_e <- as.matrix(edges[, grepl(".trt", names(edges))])
+    B_p <- as.matrix(edges[, grepl(".all", names(edges))])
+    f_e_conditions <- t(B_p) - t(B_e)
+    I_minus_k <- diag(rep(-1, K)) # I_{k \by k}
+    zero_k <- matrix(0, nrow = K, ncol = K) # 0_{k \by k}
+
+    A.45 <- rbind(
+      cbind(f_e_conditions, I_minus_k, zero_k),
+      cbind(-f_e_conditions, zero_k, I_minus_k)
+    )
+  } else {
+    A.45 <- NULL
+  }
+
+  model <- list()
+  if (balance) {
+    ## Objective
+    model$modelsense <- "min"
+    model$obj <- c(delta, rep(lambda_k, 2*K))
+    ## Constraints
+    model$varnames <- c(paste0("f",1:E), paste0("gp",1:K), paste0("gm",1:K))
+    model$A <- rbind(A.2, A.3, A.45)
+    model$sense <- rep("<=", nrow(model$A))
+    model$rhs <- c(S, -S, rep(1, length(all_ids)), rep(0, 2*K))
+    model$vtype <- c(rep("B", E), rep("C", 2*K))
+  } else {
+    ## Objective
+    model$modelsense <- "min"
+    model$obj <- c(delta)
+    ## Constraints
+    model$varnames <- c(paste0("f",1:E))
+    model$A <- rbind(A.2, A.3)
+    model$sense <- rep("<=", nrow(model$A))
+    model$rhs <- c(S, -S, rep(1, length(all_ids)))
+    model$vtype <- c(rep("B", E))
+  }
+
+  if (optimizer == "gurobi") {
+    return(model)
+  } else  if (optimizer == "glpk") {
+    names(model) <- c("max", "obj", "varnames", "mat", "dir", "rhs", "types")
+    model$max <- ifelse(model$max == "min", FALSE, NA)
+    return(model)
+  } else {
+    stop(paste0("Model optimizer of type ", optimizer, "is not supported.  Use 'gurobi' or 'glpk'."))
+  }
+  return(model)
+}
+
+
+#' Balanced Risk Set Matching
+#'
+#' TODO: Come up with a better description here.  Mention the Li et al. (2001) Balanced Risk Set Matching
+#' paper.
+#'
+#' @param n_pairs number of pairs desired from matching
+#' @param df data frame containing columns matching the \code{id, time, trt_time} arguments, and covariates.
+#'   This data frame is expected to be in tidy, long format, so that the \code{id}, \code{trt_time}, and
+#'   baseline  variables may be repeated for different values of \code{time}.  Data frame should be unique
+#'   at \code{id} and \code{time}.
+#' @param id optional parameter to specify the name of the id column in \code{df}.
+#' @param time optional parameter to specify the name of the time column in \code{df}.
+#' @param trt_time optional parameter to specify the name of the treatment time column in \code{df}.
+#' @param covariates optional parameter to specify the names of covariates to be used. If \code{NULL}, will
+#'   default to all columns except those named by \code{id, time, trt_time}.
+#' @param balance_covariates optional parameter to specify the names of covariates to be used in balancing.
+#'   If \code{NULL}, will default to all columns except those named by \code{id, time, trt_time}.
+#' @param optimizer "gurobi" or "glpk". Specifies which optimizer output to use;
+#'   defaults to "gurobi".
+#' @param verbose logical; if TRUE, will print some useful information for
+#'   potentially long model calls; defaults to FALSE
+#' @param balance When TRUE, a balanced risk set matching model will be built.
+#'   When FALSE, or when bal_all = NULL, balancing constraints will not be
+#'   included.
+#'
+#' @return TODO:
+#'
+#' @examples
+#'
+#'
+#'
+#' @export
+brsmatch <- function(n_pairs,
+                     df,
+                     id = "id", time = "time", trt_time = "trt_time",
+                     covariates = NULL, balance_covariates = NULL,
+                     optimizer = "gurobi", verbose = FALSE, balance = TRUE) {
+
+  edges <- enumerate_edges_and_compute_distances(df, id, time, trt_time, covariates)
+  bal <- NULL
+  if (balance) bal <- balance_columns(df, id, time, trt_time, balance_covariates)
+
+  model <- rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
+
+  if (optimizer == "gurobi") {
+    # require(gurobi)
+    res <- gurobi::gurobi(model)
+  } else if (optimizer == "glpk") {
+    res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
+                                      control = list(verbose = verbose, presolve = TRUE)))
+  }
+  return(res)
+  # TODO: set up the nice pair output that is desired from this
+
+
+}
 
 
 

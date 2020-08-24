@@ -29,10 +29,10 @@
 #'   X4 = c(8,9,4,5,6,7,2,3,4)
 #' )
 #'
-#' enumerate_edges_and_compute_distances(df, "hhidpn", "wave", "treatment_time")
+#' compute_distances(df, "hhidpn", "wave", "treatment_time")
 #'
 #' @export
-enumerate_edges_and_compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time", covariates = NULL) {
+compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time", covariates = NULL) {
   # TODO: check that the all units treatment time is not needed in this (it shows up in edges in the code)
 
   if (is.null(covariates)) {
@@ -155,7 +155,7 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
 #'
 #' @param n_pairs number of pairs desired from matching
 #' @param edges data frame with columns "trt_id", "all_id", "trt_time", "dist";
-#'   for example, the output from a call to \code{enumerate_edges_and_compute_distances()}
+#'   for example, the output from a call to \code{compute_distances()}
 #' @param bal_all matrix with columns "id", "time", and additional balance
 #'   columns; for example, the output from a call to \code{balance_columns()};
 #'   defaults to NULL, indicating balance is not used.
@@ -179,7 +179,7 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
 #'   X3 = c(9,4,5,6,7,2,3,4,8),
 #'   X4 = c(8,9,4,5,6,7,2,3,4)
 #' )
-#' edges <- enumerate_edges_and_compute_distances(df, "hhidpn", "wave", "treatment_time")
+#' edges <- compute_distances(df, "hhidpn", "wave", "treatment_time")
 #' bal <- balance_columns(df, "hhidpn", "wave", "treatment_time")
 #' n_unique_id <- length(unique(df$hhidpn))
 #'
@@ -199,7 +199,7 @@ rsm_optimization_model <- function(n_pairs,
     bal_all <- as.data.frame(bal_all)
     edges <- merge(edges, bal_all, by.x = c("trt_id", "trt_time"), by.y = c("id", "time"))
     edges <- merge(edges, bal_all, by.x = c("all_id", "trt_time"), by.y = c("id", "time"),
-                 suffixes = c(".trt", ".all"))
+                   suffixes = c(".trt", ".all"))
   }
 
   S <- n_pairs # number of pairs
@@ -316,6 +316,45 @@ rsm_optimization_model <- function(n_pairs,
   return(model)
 }
 
+#' Output pairs to new format
+#'
+#' Takes a data frame with each row as a pair and returns output in long, tidy
+#' format that indicates the matched pairs
+#'
+#' @param matched_ids data frame with two columns: trt_id, all_id.  Each row
+#'   consists of a matched pair, where "trt_id" provides the id of the treated
+#'   and "all_id" provides the id of the control.
+#' @param id_list optional vector of ids to include in the output.
+#'
+#' @return a data frame with columns "id", "pair_id", and "type".  "id" refers
+#'   to the individual ids, "pair_id" is a unique identifier for each pair, and
+#'   "type" indicates whether the id is from treatment ("trt") or control ("all")
+#'
+#' @examples
+#' matched_ids <- data.frame(
+#'   trt_id = c(2, 5, 7),
+#'   all_id = c(3, 1, 4)
+#' )
+#'
+#' output_pairs(matched_ids)
+#'
+#' @export
+output_pairs <- function(matched_ids, id = "id", id_list = NULL) {
+  if (is.null(id_list)) id_list <- unlist(matched_ids, use.names = FALSE)
+  pairs <- data.frame(id = id_list,
+                      pair_id = NA,
+                      type = NA_character_)
+  for (rowid in 1:nrow(matched_ids)) {
+    match_ind <- pairs$id %in% matched_ids[rowid, ]
+    pairs$pair_id[match_ind] <- rowid
+  }
+  trt_ind <- pairs$id %in% matched_ids[, "trt_id"]
+  all_ind <- pairs$id %in% matched_ids[, "all_id"]
+  pairs$type[trt_ind] <- "trt"
+  pairs$type[all_ind] <- "all"
+  names(pairs)[1] <- id
+  return(pairs)
+}
 
 #' Balanced Risk Set Matching
 #'
@@ -355,7 +394,7 @@ brsmatch <- function(n_pairs,
                      covariates = NULL, balance_covariates = NULL,
                      optimizer = "gurobi", verbose = FALSE, balance = TRUE) {
 
-  edges <- enumerate_edges_and_compute_distances(df, id, time, trt_time, covariates)
+  edges <- compute_distances(df, id, time, trt_time, covariates)
   bal <- NULL
   if (balance) bal <- balance_columns(df, id, time, trt_time, balance_covariates)
 
@@ -364,14 +403,16 @@ brsmatch <- function(n_pairs,
   if (optimizer == "gurobi") {
     # require(gurobi)
     res <- gurobi::gurobi(model)
+    # matches <- NULL
+    matches <- res$x[grepl("f", model$varnames)] # TODO: test that this works
   } else if (optimizer == "glpk") {
     res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
-                                      control = list(verbose = verbose, presolve = TRUE)))
+                                             control = list(verbose = verbose, presolve = TRUE)))
+    matches <- res$solution[grepl("f", model$varnames)]
   }
-  return(res)
-  # TODO: set up the nice pair output that is desired from this
 
-
+  matched_ids <- edges[matches == 1, c("trt_id", "all_id")]
+  output_pairs(matched_ids, id = id, id_list = unique(df[[id]]))
 }
 
 

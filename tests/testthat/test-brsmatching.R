@@ -1,6 +1,6 @@
 context("Test the functions used in Balanced Risk-set Matching brsmatching.R")
 
-test_that("enumerate_edges_and_compute_distances has correct output", {
+test_that("compute_distances has correct output", {
   library(dplyr)
   wave_data <- data.frame(
     hhidpn = rep(1:3, each = 3),
@@ -19,7 +19,7 @@ test_that("enumerate_edges_and_compute_distances has correct output", {
   df <- wave_data %>%
     left_join(treated_data, by = "hhidpn") %>%
     select(-treatment)
-  edges <- enumerate_edges_and_compute_distances(df, "hhidpn", "wave", "treatment_time")
+  edges <- compute_distances(df, "hhidpn", "wave", "treatment_time")
 
   expect_equal(edges$trt_id, c(1,1,2))
   expect_equal(edges$all_id, c(2,3,3))
@@ -66,7 +66,7 @@ test_that("rsm_optimization_model has correct output", {
     X3 = c(9,4,5,6,7,2,3,4,8),
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
-  edges <- enumerate_edges_and_compute_distances(df, "hhidpn", "wave", "treatment_time")
+  edges <- compute_distances(df, "hhidpn", "wave", "treatment_time")
   bal <- balance_columns(df, "hhidpn", "wave", "treatment_time")
   n_unique_id <- length(unique(df$hhidpn))
 
@@ -85,6 +85,29 @@ test_that("rsm_optimization_model has correct output", {
   expect_equal(names(model), c("max", "obj", "varnames", "mat", "dir", "rhs", "types"))
 })
 
+test_that("output_pairs() has correct output.", {
+  matched_ids <- data.frame(
+    trt_id = c(2, 5, 7),
+    all_id = c(3, 1, 4)
+  )
+
+  out <- output_pairs(matched_ids)
+  expect_equal(colnames(out), c("id", "pair_id", "type"))
+  expect_setequal(out$id, c(1,2,3,4,5,7))
+  expect_equal(unique(as.vector(table(out$pair_id))), 2)
+  expect_equal(unique(as.vector(table(out$type))), nrow(matched_ids))
+
+  out <- output_pairs(matched_ids, id_list = 1:10)
+  expect_setequal(out$id, 1:10)
+  expect_equal(unique(as.vector(table(out$pair_id))), 2)
+  expect_equal(unique(as.vector(table(out$type))), nrow(matched_ids))
+  expect(is.na(unique(out[out$id %in% c(6, 8, 9, 10), "pair_id"])), "pair_id should have NA values at id 6, 8, 9, and 10")
+  expect(is.na(unique(out[out$id %in% c(6, 8, 9, 10), "type"])), "type should have NA values at id 6, 8, 9, and 10")
+
+  out <- output_pairs(matched_ids, id = "hhidpn")
+  expect_equal(colnames(out), c("hhidpn", "pair_id", "type"))
+
+})
 
 test_that("brsmatch has correct output", {
   df <- data.frame(
@@ -97,13 +120,30 @@ test_that("brsmatch has correct output", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
-  brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-           optimizer = "glpk")
+  pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+                    optimizer = "glpk")
+  expect_equal(colnames(pairs), c("hhidpn", "pair_id", "type"))
+  expect_equal(length(unique(na.omit(pairs$pair_id))), 1)
+  expect_equal(unique(pairs$hhidpn), unique(df$hhidpn))
+  expect_equal(pairs$hhidpn[which(pairs$pair_id == 1)], c(2,3))
 
-
+  # check runs properly with other arguments
   brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
            optimizer = "glpk", balance = FALSE)
-
-  # TODO: come up with a few tests here, check gurobi works
+  # TODO: add gurobi tests
 })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

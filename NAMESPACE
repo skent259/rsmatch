@@ -2,5 +2,6 @@
 
 export(balance_columns)
 export(brsmatch)
-export(enumerate_edges_and_compute_distances)
+export(compute_distances)
+export(output_pairs)
 export(rsm_optimization_model)

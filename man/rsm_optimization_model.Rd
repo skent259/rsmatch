@@ -17,7 +17,7 @@ rsm_optimization_model(
 \item{n_pairs}{number of pairs desired from matching}
 
 \item{edges}{data frame with columns "trt_id", "all_id", "trt_time", "dist";
-for example, the output from a call to \code{enumerate_edges_and_compute_distances()}}
+for example, the output from a call to \code{compute_distances()}}
 
 \item{bal_all}{matrix with columns "id", "time", and additional balance
 columns; for example, the output from a call to \code{balance_columns()};
@@ -49,7 +49,7 @@ df <- data.frame(
   X3 = c(9,4,5,6,7,2,3,4,8),
   X4 = c(8,9,4,5,6,7,2,3,4)
 )
-edges <- enumerate_edges_and_compute_distances(df, "hhidpn", "wave", "treatment_time")
+edges <- compute_distances(df, "hhidpn", "wave", "treatment_time")
 bal <- balance_columns(df, "hhidpn", "wave", "treatment_time")
 n_unique_id <- length(unique(df$hhidpn))
 

@@ -51,8 +51,8 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
   treated_ids <- ids[trt_times > 0]
 
   # Iterate over treated ids, calculate Mahalanobis dist, and put into a data.frame
-  out <- list()
-  for (i in treated_ids) {
+  out <- lapply(1:length(treated_ids), FUN = function(j) {
+    i <- treated_ids[[j]]
     trt_time_i <- trt_times[[which(ids == i)]]
     df_at_trt <- df[df[[time]] == trt_time_i - 1, ] # TODO: rename to reflect this is pre-treatment data
 
@@ -65,14 +65,16 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
       valid_match <- df_at_trt[[id]] != i & # can't match control with itself
         (df_at_trt[[trt_time]] > trt_time_i | df_at_trt[[trt_time]] == 0) # control receives treatment later, or not at all
 
-      out[[i]] <- data.frame(
+      return(data.frame(
         trt_id = i,
         all_id = df_at_trt[[id]][valid_match],
         trt_time = trt_time_i,
         dist = dists[valid_match]
-      )
+      ))
+    } else {
+      return(NULL)
     }
-  }
+  })
   do.call(rbind, out)
 }
 
@@ -343,7 +345,7 @@ output_pairs <- function(matched_ids, id = "id", id_list = NULL) {
   if (is.null(id_list)) id_list <- unlist(matched_ids, use.names = FALSE)
   pairs <- data.frame(id = id_list,
                       pair_id = NA,
-                      type = NA_character_)
+                      type = NA)
   for (rowid in 1:nrow(matched_ids)) {
     match_ind <- pairs$id %in% matched_ids[rowid, ]
     pairs$pair_id[match_ind] <- rowid
@@ -394,15 +396,21 @@ brsmatch <- function(n_pairs,
                      covariates = NULL, balance_covariates = NULL,
                      optimizer = "gurobi", verbose = FALSE, balance = TRUE) {
 
+  if (verbose) message("Computing distances from df...")
   edges <- compute_distances(df, id, time, trt_time, covariates)
   bal <- NULL
-  if (balance) bal <- balance_columns(df, id, time, trt_time, balance_covariates)
-
+  if (balance) {
+    if (verbose) message("Building balance columns from df...")
+    bal <- balance_columns(df, id, time, trt_time, balance_covariates)
+  }
+  if (verbose) message("Constructing optimization model...")
   model <- rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
 
+  if (verbose) message("Preparing to run optimization model")
   if (optimizer == "gurobi") {
     # require(gurobi)
     res <- gurobi::gurobi(model)
+    # TODO: add verbose flag to gurobi
     # matches <- NULL
     matches <- res$x[grepl("f", model$varnames)] # TODO: test that this works
   } else if (optimizer == "glpk") {

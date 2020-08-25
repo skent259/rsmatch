@@ -1,7 +1,7 @@
 context("Test the functions used in Balanced Risk-set Matching brsmatching.R")
 
 test_that("compute_distances has correct output", {
-  library(dplyr)
+  suppressWarnings(library(dplyr))
   wave_data <- data.frame(
     hhidpn = rep(1:3, each = 3),
     wave = rep(1:3, 3),

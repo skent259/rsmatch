@@ -48,14 +48,38 @@ When FALSE, or when bal_all = NULL, balancing constraints will not be
 included.}
 }
 \value{
-TODO:
+a data frame containing the pair information.  The data frame has
+columns \code{id}, "pair_id", and "type". \code{id} matches the input
+parameter and will contain all ids from the input data frame.  "pair_id"
+refers to the id of the computed pairs; NA values indicate unmatched
+individuals.  "type" indicates whether the individual in the pair is
+considered as treatment ("trt") or control ("all") in that pair.
 }
 \description{
-TODO: Come up with a better description here.  Mention the Li et al. (2001) Balanced Risk Set Matching
-paper.
+Perform balanced risk set matching as described in Li et al. (2001)
+"Balanced Risk Set Matching".  Given a longitudinal data frame with covariate
+information, along with treatment time, build a MIP problem that matches
+treated individuals to those that haven't been treated yet (or are never
+treated) based on minimizing the Mahalanobis distance between covariates. If
+balancing is desired, the model will try to minimize the imbalance in terms
+of specified balancing covariates in the final pair output.  Each treated
+individual is matched to one other individual.
 }
 \examples{
+df <- data.frame(
+  hhidpn = rep(1:3, each = 3),
+  wave = rep(1:3, 3),
+  treatment_time = rep(c(2,3,NA), each = 3),
+  X1 = c(2,2,2,3,3,3,9,9,9),
+  X2 = rep(c("a","a","b"), each = 3),
+  X3 = c(9,4,5,6,7,2,3,4,8),
+  X4 = c(8,9,4,5,6,7,2,3,4)
+)
 
+brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave",
+         trt_time = "treatment_time", optimizer = "glpk")
 
-
+}
+\author{
+Sean Kent
 }

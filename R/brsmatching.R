@@ -1,7 +1,13 @@
 #' Compute distance on valid matches in Risk Set Matching.
 #'
-#' TODO: Come up with a better description here.  Mention the calculation heuristics from the Li et al. (2001) Balanced Risk Set Matching
-#' paper.
+#' The \code{compute_distances} function takes in longitudinal data and
+#' computes the Mahalanobis distance between eligible edges according to the
+#' procedure of risk set matching. In risk set matching, each individual that
+#' is treated at time t can be matched to someone who hasn't been treated yet
+#' as of time t.  The Mahalanobis distance is computed for each treated
+#' id against possible matches based on baseline and timevarying covariates at
+#' time t. See Li et al. (2001) "Balanced Risk Set Matching" for additional
+#' details.
 #'
 #' @param df data frame containing columns matching the \code{id, time, trt_time} arguments, and covariates.
 #'   This data frame is expected to be in tidy, long format, so that the \code{id}, \code{trt_time}, and
@@ -33,8 +39,6 @@
 #'
 #' @export
 compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time", covariates = NULL) {
-  # TODO: check that the all units treatment time is not needed in this (it shows up in edges in the code)
-
   if (is.null(covariates)) {
     covariates <- setdiff(colnames(df), c(id, time, trt_time))
   }
@@ -80,7 +84,17 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
 
 #' Compute balance covariate indicators
 #'
-#' TODO: add description
+#' The \code{balance_columns} function takes longitudinal data input and returns
+#' corresponding balance columns on desired covariates according to the process
+#' described in Li et al. (2001) "Balanced Risk Set Matching". Each balance
+#' column is an indicator variable.
+#'
+#' For numeric covariates, quantiles are computed for treated individuals at
+#' their treated time, and indicator variables for whether each covariate
+#' exceeds the quantiles are returned.  Default quantiles used are 1/3 and 2/3.
+#'
+#' For factor and character covariates, indicators for each level (except one)
+#' are returned as would be done in a call to \code{stats::model.matrix}.
 #'
 #' @param df data frame containing columns matching the \code{id, time, trt_time} arguments, and covariates.
 #'   This data frame is expected to be in tidy, long format, so that the \code{id}, \code{trt_time}, and
@@ -92,7 +106,9 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
 #' @param balance_covariates optional parameter to specify the names of covariates to be used in balancing.
 #'   If \code{NULL}, will default to all columns except those named by \code{id, time, trt_time}.
 #'
-#' @return TODO: add return description
+#' @return a matrix with the same number of rows as the input dataframe.  Each
+#'   column is an indicator variable corresponds to a balancing criteria.  The
+#'   number of balance columns returned is 2*n_numeric_cols + n_factor_cols.
 #'
 #' @examples
 #' df <- data.frame(
@@ -151,9 +167,16 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
 }
 
 
-#' Balanced risk set matching with the Gurobi optimizer interface
+#' Build optimization model for Balanced Risk Set Matching
 #'
-#' TODO: add description
+#' The \code{rsm_optimization_model} function takes in a distance data-frame
+#' (tidy-format) and optional balancing columns and returns an optimization
+#' model in the corresponding optimizer format.  The model is build to generate
+#' \code{n_pairs} pairs that minimize the distance while ensuring that each id
+#' gets used in at most one pair.  If \code{balance} is TRUE, the optimization
+#' model will also add constraint variables that heavily penalize violations
+#' of the balance criterion.  This function is rarely useful on its own, it
+#' is preferred to make a function call to \code{brsmatch}.
 #'
 #' @param n_pairs number of pairs desired from matching
 #' @param edges data frame with columns "trt_id", "all_id", "trt_time", "dist";
@@ -169,7 +192,9 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
 #'   When FALSE, or when bal_all = NULL, balancing constraints will not be
 #'   included.
 #'
-#' @return TODO: add return description
+#' @return an optimization model that can be readily passed to the optimizer
+#'   parameter.  Defines the mixed integer programming problem for risk set
+#'   matching in terms of specified data.
 #'
 #' @examples
 #' df <- data.frame(
@@ -247,6 +272,7 @@ rsm_optimization_model <- function(n_pairs,
                               dims = c(length(all_ids), n_vars))
 
   # # I think this is faster....
+  # TODO: check if this is faster
   # sparse_inds <- lapply(1:length(all_ids), function(i) {
   #   # TODO: might be able to vectorize this?
   #   if (verbose & (i %% 50 == 0)) { cat("  i:", i, "/", length(all_ids), "\n") }
@@ -360,8 +386,14 @@ output_pairs <- function(matched_ids, id = "id", id_list = NULL) {
 
 #' Balanced Risk Set Matching
 #'
-#' TODO: Come up with a better description here.  Mention the Li et al. (2001) Balanced Risk Set Matching
-#' paper.
+#' Perform balanced risk set matching as described in Li et al. (2001)
+#' "Balanced Risk Set Matching".  Given a longitudinal data frame with covariate
+#' information, along with treatment time, build a MIP problem that matches
+#' treated individuals to those that haven't been treated yet (or are never
+#' treated) based on minimizing the Mahalanobis distance between covariates. If
+#' balancing is desired, the model will try to minimize the imbalance in terms
+#' of specified balancing covariates in the final pair output.  Each treated
+#' individual is matched to one other individual.
 #'
 #' @param n_pairs number of pairs desired from matching
 #' @param df data frame containing columns matching the \code{id, time, trt_time} arguments, and covariates.
@@ -383,13 +415,29 @@ output_pairs <- function(matched_ids, id = "id", id_list = NULL) {
 #'   When FALSE, or when bal_all = NULL, balancing constraints will not be
 #'   included.
 #'
-#' @return TODO:
+#' @return a data frame containing the pair information.  The data frame has
+#'   columns \code{id}, "pair_id", and "type". \code{id} matches the input
+#'   parameter and will contain all ids from the input data frame.  "pair_id"
+#'   refers to the id of the computed pairs; NA values indicate unmatched
+#'   individuals.  "type" indicates whether the individual in the pair is
+#'   considered as treatment ("trt") or control ("all") in that pair.
 #'
 #' @examples
+#' df <- data.frame(
+#'   hhidpn = rep(1:3, each = 3),
+#'   wave = rep(1:3, 3),
+#'   treatment_time = rep(c(2,3,NA), each = 3),
+#'   X1 = c(2,2,2,3,3,3,9,9,9),
+#'   X2 = rep(c("a","a","b"), each = 3),
+#'   X3 = c(9,4,5,6,7,2,3,4,8),
+#'   X4 = c(8,9,4,5,6,7,2,3,4)
+#' )
 #'
-#'
+#' brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave",
+#'          trt_time = "treatment_time", optimizer = "glpk")
 #'
 #' @export
+#' @author Sean Kent
 brsmatch <- function(n_pairs,
                      df,
                      id = "id", time = "time", trt_time = "trt_time",
@@ -412,7 +460,7 @@ brsmatch <- function(n_pairs,
     res <- gurobi::gurobi(model)
     # TODO: add verbose flag to gurobi
     # matches <- NULL
-    matches <- res$x[grepl("f", model$varnames)] # TODO: test that this works
+    matches <- res$x[grepl("f", model$varnames)]
   } else if (optimizer == "glpk") {
     res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
                                              control = list(verbose = verbose, presolve = TRUE)))

@@ -28,10 +28,23 @@ at \code{id} and \code{time}.}
 If \code{NULL}, will default to all columns except those named by \code{id, time, trt_time}.}
 }
 \value{
-TODO: add return description
+a matrix with the same number of rows as the input dataframe.  Each
+column is an indicator variable corresponds to a balancing criteria.  The
+number of balance columns returned is 2*n_numeric_cols + n_factor_cols.
 }
 \description{
-TODO: add description
+The \code{balance_columns} function takes longitudinal data input and returns
+corresponding balance columns on desired covariates according to the process
+described in Li et al. (2001) "Balanced Risk Set Matching". Each balance
+column is an indicator variable.
+}
+\details{
+For numeric covariates, quantiles are computed for treated individuals at
+their treated time, and indicator variables for whether each covariate
+exceeds the quantiles are returned.  Default quantiles used are 1/3 and 2/3.
+
+For factor and character covariates, indicators for each level (except one)
+are returned as would be done in a call to \code{stats::model.matrix}.
 }
 \examples{
 df <- data.frame(

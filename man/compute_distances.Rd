@@ -34,8 +34,14 @@ a possible control, \code{trt_time} refers to the treatment time of \code{trt_id
 the Mahalanobis distance
 }
 \description{
-TODO: Come up with a better description here.  Mention the calculation heuristics from the Li et al. (2001) Balanced Risk Set Matching
-paper.
+The \code{compute_distances} function takes in longitudinal data and
+computes the Mahalanobis distance between eligible edges according to the
+procedure of risk set matching. In risk set matching, each individual that
+is treated at time t can be matched to someone who hasn't been treated yet
+as of time t.  The Mahalanobis distance is computed for each treated
+id against possible matches based on baseline and timevarying covariates at
+time t. See Li et al. (2001) "Balanced Risk Set Matching" for additional
+details.
 }
 \examples{
 df <- data.frame(

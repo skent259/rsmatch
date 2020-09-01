@@ -2,7 +2,7 @@
 % Please edit documentation in R/brsmatching.R
 \name{rsm_optimization_model}
 \alias{rsm_optimization_model}
-\title{Balanced risk set matching with the Gurobi optimizer interface}
+\title{Build optimization model for Balanced Risk Set Matching}
 \usage{
 rsm_optimization_model(
   n_pairs,
@@ -34,10 +34,19 @@ When FALSE, or when bal_all = NULL, balancing constraints will not be
 included.}
 }
 \value{
-TODO: add return description
+an optimization model that can be readily passed to the optimizer
+parameter.  Defines the mixed integer programming problem for risk set
+matching in terms of specified data.
 }
 \description{
-TODO: add description
+The \code{rsm_optimization_model} function takes in a distance data-frame
+(tidy-format) and optional balancing columns and returns an optimization
+model in the corresponding optimizer format.  The model is build to generate
+\code{n_pairs} pairs that minimize the distance while ensuring that each id
+gets used in at most one pair.  If \code{balance} is TRUE, the optimization
+model will also add constraint variables that heavily penalize violations
+of the balance criterion.  This function is rarely useful on its own, it
+is preferred to make a function call to \code{brsmatch}.
 }
 \examples{
 df <- data.frame(

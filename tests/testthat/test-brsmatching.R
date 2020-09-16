@@ -48,10 +48,10 @@ test_that("balance_columns has correct output", {
   expect_equivalent(bal[, "X1.q2"], c(rep(0,3), rep(1,6)))
   expect_equivalent(bal[, "X2a"], c(rep(1,6), rep(0,3)))
   expect_equivalent(bal[, "X2b"], c(rep(0,6), rep(1,3)))
-  expect_equivalent(bal[, "X3.q1"], c(1,1,1,1,1,0,1,1,1))
-  expect_equivalent(bal[, "X3.q2"], c(1,1,1,1,1,0,0,1,1))
-  expect_equivalent(bal[, "X4.q1"], c(1,1,0,0,0,0,0,0,0))
-  expect_equivalent(bal[, "X4.q2"], c(0,1,0,0,0,0,0,0,0))
+  expect_equivalent(bal[, "X3.q1"], c(1,0,0,0,0,0,0,0,1))
+  expect_equivalent(bal[, "X3.q2"], c(1,0,0,0,0,0,0,0,0))
+  expect_equivalent(bal[, "X4.q1"], c(1,1,0,0,0,1,0,0,0))
+  expect_equivalent(bal[, "X4.q2"], c(1,1,0,0,0,0,0,0,0))
 
 })
 
@@ -83,6 +83,29 @@ test_that("rsm_optimization_model has correct output", {
   ## GLPK, balanced
   model <- rsm_optimization_model(1, edges, bal, optimizer = "glpk", balance = TRUE)
   expect_equal(names(model), c("max", "obj", "varnames", "mat", "dir", "rhs", "types"))
+})
+
+test_that("rsm_optimization_model() doesn't re-order the edges", {
+  edges <- data.frame(
+    trt_id = c(1, 1, 1, 2, 2, 2, 3, 3, 3),
+    all_id = c(2, 3, 4, 3, 4, 5, 2, 3, 5),
+    trt_time = c(2, 2, 2, 3, 3, 3, 2, 2, 2),
+    dist = 0.1 * 3:11
+  )
+
+  bal <- data.frame(
+    id = rep(1:5, each = 3),
+    time = rep(1:3, 5),
+    X2a = c(rep(1, 10), rep(0, 5)),
+    X1.q1 = c(1, rep(0, 13), 1)
+  )
+
+  model <- rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = TRUE)
+  expect_equal(edges$dist, model$obj[1:nrow(edges)])
+
+  model <- rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = FALSE)
+  expect_equal(edges$dist, model$obj[1:nrow(edges)])
+
 })
 
 test_that("output_pairs() has correct output.", {

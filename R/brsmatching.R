@@ -141,8 +141,8 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
     warning(paste0("Columns ", other_cov, " are of unusable type and will be omitted.  Useable types are numeric, integer, factor, and character"))
   }
 
-  # calculate quantiles based on treated ids at treatment time
-  trt_at_trt_time_df <- df[df[[time]] == df[[trt_time]], ]
+  # calculate quantiles based on treated ids just before treatment time
+  trt_at_trt_time_df <- df[df[[time]] == (df[[trt_time]] - 1), ]
   quantiles <- apply(trt_at_trt_time_df[, numeric_cov],
                      MARGIN = 2,
                      stats::quantile,
@@ -224,9 +224,13 @@ rsm_optimization_model <- function(n_pairs,
   if (balance) {
     # TODO: check that no columns have the .trt or .all name in them already. This is unlikely
     bal_all <- as.data.frame(bal_all)
+    bal_all$time <- bal_all$time + 1 # want to match when time == trt_time - 1
+    edges$.rowid <- 1:nrow(edges)
     edges <- merge(edges, bal_all, by.x = c("trt_id", "trt_time"), by.y = c("id", "time"))
     edges <- merge(edges, bal_all, by.x = c("all_id", "trt_time"), by.y = c("id", "time"),
                    suffixes = c(".trt", ".all"))
+    edges <- edges[order(edges$.rowid), ]
+    edges$.rowid <- NULL
   }
 
   S <- n_pairs # number of pairs

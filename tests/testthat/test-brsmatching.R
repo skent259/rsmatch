@@ -40,6 +40,7 @@ test_that("balance_columns has correct output", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
+  # mix of character and numeric variables
   balance_covariates <- c("X1", "X2", "X3", "X4")
   bal <- balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
 
@@ -52,6 +53,22 @@ test_that("balance_columns has correct output", {
   expect_equivalent(bal[, "X3.q2"], c(1,0,0,0,0,0,0,0,0))
   expect_equivalent(bal[, "X4.q1"], c(1,1,0,0,0,1,0,0,0))
   expect_equivalent(bal[, "X4.q2"], c(1,1,0,0,0,0,0,0,0))
+
+  # single character balance variable
+  balance_covariates <- c("X2")
+  bal <- balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
+
+  expect_equal(length(colnames(bal)), 4)
+  expect_equivalent(bal[, "X2a"], c(rep(1,6), rep(0,3)))
+  expect_equivalent(bal[, "X2b"], c(rep(0,6), rep(1,3)))
+
+  # single numeric balance variable
+  balance_covariates <- c("X1")
+  bal <- balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
+
+  expect_equal(length(colnames(bal)), 4)
+  expect_equivalent(bal[, "X1.q1"], c(rep(0,3), rep(1,6)))
+  expect_equivalent(bal[, "X1.q2"], c(rep(0,3), rep(1,6)))
 
 })
 
@@ -87,7 +104,7 @@ test_that("rsm_optimization_model has correct output", {
 
 test_that("rsm_optimization_model() doesn't re-order the edges", {
   edges <- data.frame(
-    trt_id = c(1, 1, 1, 2, 2, 2, 3, 3, 3),
+    trt_id = c(1, 1, 1, 2, 2, 2, 3, 4, 3),
     all_id = c(2, 3, 4, 3, 4, 5, 2, 3, 5),
     trt_time = c(2, 2, 2, 3, 3, 3, 2, 2, 2),
     dist = 0.1 * 3:11
@@ -102,6 +119,13 @@ test_that("rsm_optimization_model() doesn't re-order the edges", {
 
   model <- rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = TRUE)
   expect_equal(edges$dist, model$obj[1:nrow(edges)])
+
+  model <- rsm_optimization_model(2, edges, bal, optimizer = "glpk", balance = TRUE)
+  res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
+                                           control = list(verbose = TRUE, presolve = TRUE)))
+  matches <- res$solution[grepl("f", model$varnames)]
+  matched_ids <- edges[matches == 1, c("trt_id", "all_id")]
+  output_pairs(matched_ids, "id", id_list = sample(unique(bal$id)))
 
   model <- rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = FALSE)
   expect_equal(edges$dist, model$obj[1:nrow(edges)])

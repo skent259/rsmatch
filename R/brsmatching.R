@@ -133,7 +133,7 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
   df[[trt_time]][which(is.na(df[[trt_time]]))] <- 0
 
   # split balance_covariates into types
-  bal_cov_types <- sapply(df[, balance_covariates], class)
+  bal_cov_types <- sapply(df[, balance_covariates, drop = FALSE], class)
   numeric_cov <- balance_covariates[which(bal_cov_types %in% c("numeric", "integer"))]
   factor_cov <- balance_covariates[which(bal_cov_types %in% c("factor", "character"))]
   other_cov <- setdiff(balance_covariates, union(numeric_cov, factor_cov))
@@ -141,22 +141,33 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
     warning(paste0("Columns ", other_cov, " are of unusable type and will be omitted.  Useable types are numeric, integer, factor, and character"))
   }
 
+  empty_df <- matrix(nrow = nrow(df), ncol = 0)
   # calculate quantiles based on treated ids just before treatment time
-  trt_at_trt_time_df <- df[df[[time]] == (df[[trt_time]] - 1), ]
-  quantiles <- apply(trt_at_trt_time_df[, numeric_cov],
-                     MARGIN = 2,
-                     stats::quantile,
-                     probs = c(1/3, 2/3))
-  # balance on numeric columns
-  out <- list()
-  for (col in colnames(quantiles)) {
-    for (row in 1:nrow(quantiles)) {
-      out[[paste0(col, ".q",row)]] <- 1*(df[[col]] > quantiles[row, col])
+  if (length(numeric_cov) > 0) {
+    trt_at_trt_time_df <- df[df[[time]] == (df[[trt_time]] - 1), ]
+    quantiles <- apply(trt_at_trt_time_df[, numeric_cov, drop = FALSE],
+                       MARGIN = 2,
+                       stats::quantile,
+                       probs = c(1/3, 2/3))
+    # balance on numeric columns
+    out <- list()
+    for (col in colnames(quantiles)) {
+      for (row in 1:nrow(quantiles)) {
+        out[[paste0(col, ".q",row)]] <- 1*(df[[col]] > quantiles[row, col])
+      }
     }
+    bal_numeric <- do.call(cbind, out)
+  } else {
+    bal_numeric <- empty_df
   }
-  bal_numeric <- do.call(cbind, out)
   # balance on character and factor columns
-  bal_factor <- stats::model.matrix(~ 0 + ., data = df[,factor_cov, drop = FALSE])
+  if (length(factor_cov) > 0) {
+    bal_factor <- stats::model.matrix(~ 0 + ., data = df[,factor_cov, drop = FALSE])
+  } else {
+    bal_factor <- empty_df
+  }
+
+
 
   cbind(
     id = df[[id]],

@@ -14,7 +14,8 @@ brsmatch(
   balance_covariates = NULL,
   optimizer = "gurobi",
   verbose = FALSE,
-  balance = TRUE
+  balance = TRUE,
+  options = c("none", "between period treatment")
 )
 }
 \arguments{
@@ -46,6 +47,10 @@ potentially long model calls; defaults to FALSE}
 \item{balance}{When TRUE, a balanced risk set matching model will be built.
 When FALSE, or when bal_all = NULL, balancing constraints will not be
 included.}
+
+\item{options}{additional arguments for rare scenarios, default = "none".  If
+options = 'between period treatment' then matches must be made on the time
+period preceding treatment and some special care must be taken.}
 }
 \value{
 a data frame containing the pair information.  The data frame has

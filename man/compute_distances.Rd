@@ -9,7 +9,8 @@ compute_distances(
   id = "id",
   time = "time",
   trt_time = "trt_time",
-  covariates = NULL
+  covariates = NULL,
+  options = "none"
 )
 }
 \arguments{
@@ -26,6 +27,10 @@ at \code{id} and \code{time}.}
 
 \item{covariates}{optional parameter to specify the names of covariates to be used. If \code{NULL}, will
 default to all columns except those named by \code{id, time, trt_time}.}
+
+\item{options}{additional arguments for rare scenarios, default = "none".  If
+options = 'between period treatment' then matches must be made on the time
+period preceding treatment and some special care must be taken.}
 }
 \value{
 a data frame with valid risk set matching pairs and their corresponding distance.  This data frame

@@ -18,6 +18,9 @@
 #' @param trt_time optional parameter to specify the name of the treatment time column in \code{df}.
 #' @param covariates optional parameter to specify the names of covariates to be used. If \code{NULL}, will
 #'   default to all columns except those named by \code{id, time, trt_time}.
+#' @param options additional arguments for rare scenarios, default = "none".  If
+#'   options = 'between period treatment' then matches must be made on the time
+#'   period preceding treatment and some special care must be taken.
 #'
 #' @return a data frame with valid risk set matching pairs and their corresponding distance.  This data frame
 #'   will have four columns.  \code{trt_id} refers to the treated id, \code{all_id} refers to the id that is
@@ -38,7 +41,7 @@
 #' compute_distances(df, "hhidpn", "wave", "treatment_time")
 #'
 #' @export
-compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time", covariates = NULL) {
+compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time", covariates = NULL, options = "none") {
   if (is.null(covariates)) {
     covariates <- setdiff(colnames(df), c(id, time, trt_time))
   }
@@ -58,7 +61,7 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
   out <- lapply(1:length(treated_ids), FUN = function(j) {
     i <- treated_ids[[j]]
     trt_time_i <- trt_times[[which(ids == i)]]
-    df_at_trt <- df[df[[time]] == trt_time_i - 1, ] # TODO: rename to reflect this is pre-treatment data
+    df_at_trt <- df[df[[time]] == trt_time_i, ]
 
     if(i %in% df_at_trt[[id]]) {
       covariates_at_trt <- stats::model.matrix(~ 0 + ., data = df_at_trt[, covariates])
@@ -68,6 +71,11 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
                                   inverted = TRUE)
       valid_match <- df_at_trt[[id]] != i & # can't match control with itself
         (df_at_trt[[trt_time]] > trt_time_i | df_at_trt[[trt_time]] == 0) # control receives treatment later, or not at all
+      if (options == "between period treatment") {
+        # potential matches must also exist at trt_time (unless trt_time is the last period)
+        exist_after_trt <- df_at_trt[[id]] %in% df[df[[time]] == trt_time_i + 1, id]
+        valid_match <- valid_match & (exist_after_trt | trt_time_i == max(df[[time]]) )
+      }
 
       return(data.frame(
         trt_id = i,
@@ -142,9 +150,9 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
   }
 
   empty_df <- matrix(nrow = nrow(df), ncol = 0)
-  # calculate quantiles based on treated ids just before treatment time
+  # calculate quantiles based on treated ids at treatment time
   if (length(numeric_cov) > 0) {
-    trt_at_trt_time_df <- df[df[[time]] == (df[[trt_time]] - 1), ]
+    trt_at_trt_time_df <- df[df[[time]] == df[[trt_time]], ]
     quantiles <- apply(trt_at_trt_time_df[, numeric_cov, drop = FALSE],
                        MARGIN = 2,
                        stats::quantile,
@@ -235,7 +243,7 @@ rsm_optimization_model <- function(n_pairs,
   if (balance) {
     # TODO: check that no columns have the .trt or .all name in them already. This is unlikely
     bal_all <- as.data.frame(bal_all)
-    bal_all$time <- bal_all$time + 1 # want to match when time == trt_time - 1
+    # bal_all$time <- bal_all$time + 1 # want to match when time == trt_time - 1
     edges$.rowid <- 1:nrow(edges)
     edges <- merge(edges, bal_all, by.x = c("trt_id", "trt_time"), by.y = c("id", "time"))
     edges <- merge(edges, bal_all, by.x = c("all_id", "trt_time"), by.y = c("id", "time"),
@@ -429,6 +437,9 @@ output_pairs <- function(matched_ids, id = "id", id_list = NULL) {
 #' @param balance When TRUE, a balanced risk set matching model will be built.
 #'   When FALSE, or when bal_all = NULL, balancing constraints will not be
 #'   included.
+#' @param options additional arguments for rare scenarios, default = "none".  If
+#'   options = 'between period treatment' then matches must be made on the time
+#'   period preceding treatment and some special care must be taken.
 #'
 #' @return a data frame containing the pair information.  The data frame has
 #'   columns \code{id}, "pair_id", and "type". \code{id} matches the input
@@ -457,10 +468,16 @@ brsmatch <- function(n_pairs,
                      df,
                      id = "id", time = "time", trt_time = "trt_time",
                      covariates = NULL, balance_covariates = NULL,
-                     optimizer = "gurobi", verbose = FALSE, balance = TRUE) {
+                     optimizer = "gurobi", verbose = FALSE, balance = TRUE,
+                     options = c("none", "between period treatment")) {
 
+  options <- match.arg(options)
+  if (options == "between period treatment") {
+    # need to match on time just before treatment
+    df[[trt_time]] <- df[[trt_time]] - 1
+  }
   if (verbose) message("Computing distances from df...")
-  edges <- compute_distances(df, id, time, trt_time, covariates)
+  edges <- compute_distances(df, id, time, trt_time, covariates, options)
   bal <- NULL
   if (balance) {
     if (verbose) message("Building balance columns from df...")

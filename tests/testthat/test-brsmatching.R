@@ -122,13 +122,14 @@ test_that("rsm_optimization_model() doesn't re-order the edges", {
     X2a = c(rep(1, 10), rep(0, 5)),
     X1.q1 = c(1, rep(0, 13), 1)
   )
+  verbose <- interactive()
 
   model <- rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = TRUE)
   expect_equal(edges$dist, model$obj[1:nrow(edges)])
 
   model <- rsm_optimization_model(2, edges, bal, optimizer = "glpk", balance = TRUE)
   res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
-                                           control = list(verbose = TRUE, presolve = TRUE)))
+                                           control = list(verbose = verbose, presolve = TRUE)))
   matches <- res$solution[grepl("f", model$varnames)]
   matched_ids <- edges[matches == 1, c("trt_id", "all_id")]
   output_pairs(matched_ids, "id", id_list = sample(unique(bal$id)))
@@ -215,7 +216,28 @@ test_that("options 'between period treatment' works with dead individuals", {
 })
 
 
+test_that("`brsmatch()` works when 'id' is a character vector", {
+  df <- data.frame(
+    hhidpn = rep(1:3, each = 3),
+    wave = rep(1:3, 3),
+    treatment_time = rep(c(2,3,NA), each = 3),
+    X1 = c(2,2,2,3,3,3,9,9,9),
+    X2 = rep(c("a","a","b"), each = 3),
+    X3 = c(9,4,5,6,7,2,3,4,8),
+    X4 = c(8,9,4,5,6,7,2,3,4)
+  )
 
+  pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+                     optimizer = "glpk", options = "between period treatment")
+
+  df$hhidpn <- as.character(df$hhidpn)
+
+  pairs2 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+                     optimizer = "glpk", options = "between period treatment")
+
+  expect_equivalent(pairs1[, 2:3], pairs2[, 2:3])
+  expect_equivalent(as.character(pairs1$hhidpn), pairs2$hhidpn)
+})
 
 
 

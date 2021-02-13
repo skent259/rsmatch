@@ -61,7 +61,7 @@ brsmatch <- function(n_pairs,
                      covariates = NULL, balance_covariates = NULL,
                      optimizer = "gurobi", verbose = FALSE, balance = TRUE,
                      options = c("none", "between period treatment")) {
-
+  # browser()
   options <- match.arg(options)
   if (options == "between period treatment") {
     # need to match on time just before treatment
@@ -158,7 +158,7 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
         (df_at_trt[[trt_time]] > trt_time_i | df_at_trt[[trt_time]] == 0) # control receives treatment later, or not at all
       if (options == "between period treatment") {
         # potential matches must also exist at trt_time (unless trt_time is the last period)
-        exist_after_trt <- df_at_trt[[id]] %in% df[df[[time]] == trt_time_i + 1, id]
+        exist_after_trt <- df_at_trt[[id]] %in% df[df[[time]] == trt_time_i + 1, ][[id]]
         valid_match <- valid_match & (exist_after_trt | trt_time_i == max(df[[time]]) )
       }
 
@@ -252,14 +252,13 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
     bal_factor <- empty_df
   }
 
-
-
-  cbind(
-    id = df[[id]],
-    time = df[[time]],
+  res <- cbind(
+    df[, c(id, time)],
     bal_factor,
     bal_numeric
   )
+  colnames(res)[1:2] <- c("id", "time")
+  return(res)
 }
 
 

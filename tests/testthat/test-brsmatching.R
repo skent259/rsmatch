@@ -239,7 +239,29 @@ test_that("`brsmatch()` works when 'id' is a character vector", {
   expect_equivalent(as.character(pairs1$hhidpn), pairs2$hhidpn)
 })
 
+test_that("`brsmatch()` returns warning when 'trt_time' is not numeric", {
+  df <- data.frame(
+    hhidpn = rep(1:3, each = 3),
+    wave = rep(1:3, 3),
+    treatment_time = rep(c(2,3,NA), each = 3),
+    X1 = c(2,2,2,3,3,3,9,9,9),
+    X2 = rep(c("a","a","b"), each = 3),
+    X3 = c(9,4,5,6,7,2,3,4,8),
+    X4 = c(8,9,4,5,6,7,2,3,4)
+  )
 
+  pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+                     optimizer = "glpk", options = "between period treatment")
+
+  df$treatment_time <- as.character(df$treatment_time)
+
+  expect_warning({
+    pairs2 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+                       optimizer = "glpk", options = "between period treatment")
+  })
+
+  expect_equivalent(pairs1, pairs2)
+})
 
 
 

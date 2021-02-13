@@ -20,5 +20,6 @@ Imports:
 Suggests: 
     testthat,
     Rglpk,
-    gurobi
+    gurobi,
+    rlang
 

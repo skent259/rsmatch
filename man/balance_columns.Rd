@@ -48,6 +48,8 @@ are returned as would be done in a call to \code{stats::model.matrix}.
 }
 \examples{
 df <- data.frame(
+   hhidpn = rep(1:3, each = 3),
+   wave = rep(1:3, 3),
   treatment_time = rep(c(2,3,NA), each = 3),
   X1 = c(2,2,2,3,3,3,9,9,9),
   X2 = rep(c("a","a","b"), each = 3),

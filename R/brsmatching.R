@@ -61,8 +61,15 @@ brsmatch <- function(n_pairs,
                      covariates = NULL, balance_covariates = NULL,
                      optimizer = "gurobi", verbose = FALSE, balance = TRUE,
                      options = c("none", "between period treatment")) {
-  # browser()
+
   options <- match.arg(options)
+  if (!is.numeric(df[[trt_time]])) {
+    rlang::warn(c(
+      paste0("Treatment time `", trt_time, "` should be numeric."),
+      i = "Converting to a numeric column."
+    ))
+    df[[trt_time]] <- as.numeric(df[[trt_time]])
+  }
   if (options == "between period treatment") {
     # need to match on time just before treatment
     df[[trt_time]] <- df[[trt_time]] - 1
@@ -197,8 +204,8 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
 #'
 #' @examples
 #' df <- data.frame(
-#    hhidpn = rep(1:3, each = 3),
-#    wave = rep(1:3, 3),
+#'    hhidpn = rep(1:3, each = 3),
+#'    wave = rep(1:3, 3),
 #'   treatment_time = rep(c(2,3,NA), each = 3),
 #'   X1 = c(2,2,2,3,3,3,9,9,9),
 #'   X2 = rep(c("a","a","b"), each = 3),

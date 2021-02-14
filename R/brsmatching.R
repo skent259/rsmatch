@@ -155,7 +155,7 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
     trt_time_i <- trt_times[[which(ids == i)]]
     df_at_trt <- df[df[[time]] == trt_time_i, ]
 
-    if(i %in% df_at_trt[[id]]) {
+    if (i %in% df_at_trt[[id]]) {
       covariates_at_trt <- stats::model.matrix(~ 0 + ., data = df_at_trt[, covariates])
       dists <- stats::mahalanobis(covariates_at_trt,
                                   covariates_at_trt[which(df_at_trt[[id]] == i),],
@@ -169,12 +169,13 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
         valid_match <- valid_match & (exist_after_trt | trt_time_i == max(df[[time]]) )
       }
 
-      return(data.frame(
+      out_j <- data.frame(
         trt_id = i,
-        all_id = df_at_trt[[id]][valid_match],
+        all_id = df_at_trt[[id]],
         trt_time = trt_time_i,
-        dist = dists[valid_match]
-      ))
+        dist = dists
+      )
+      return(out_j[valid_match, , drop = FALSE])
     } else {
       return(NULL)
     }

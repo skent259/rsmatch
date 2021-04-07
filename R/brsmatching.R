@@ -449,6 +449,7 @@ rsm_optimization_model <- function(n_pairs,
 #' Takes a data frame with each row as a pair and returns output in long, tidy
 #' format that indicates the matched pairs
 #'
+#' @inheritParams brsmatch
 #' @param matched_ids data frame with two columns: trt_id, all_id.  Each row
 #'   consists of a matched pair, where "trt_id" provides the id of the treated
 #'   and "all_id" provides the id of the control.

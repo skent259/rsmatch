@@ -54,8 +54,8 @@ coxph_match <- function(n_pairs = 10^10,
     matches <- NULL
 
     for (i in 1:length(balance_split)) {
-      matches <- rbind(matches,coxph_match1(balance_split[[i]],id, time,
-                                            trt_time, trt, covariates))
+      matches <- rbind(matches,coxph_match1(balance_split[[i]], id, time,
+                                            trt_time, covariates))
     }
   } else {
     matches <- coxph_match1(df, id, time, trt_time, covariates)
@@ -103,6 +103,7 @@ coxph_match <- function(n_pairs = 10^10,
 #'
 #' coxph_match1(df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
 #'
+#' @importFrom stats predict
 #' @export
 coxph_match1 <- function(df,
                          id = "id",
@@ -110,17 +111,15 @@ coxph_match1 <- function(df,
                          trt_time = "trt_time",
                          covariates = NULL) {
   if(is.null(covariates)){
-    data <- df[,-which(names(df) %in% c(id, time, trt_time))]
+    data <- df[,-which(names(df) %in% c(id, time, trt_time)), drop = FALSE]
   } else{
-    data <- df[, c(covariates)]
+    data <- df[, c(covariates), drop = FALSE]
   }
   data$id <- as.factor(unlist(df[, id]))
   data$time <- unlist(df[, time])
   data$trt_time <- unlist(df[, trt_time])
   data$trt <- ifelse(is.na(data$trt_time), 0, 1)
-  data[, covariates] <-
-    data[, covariates] %>%
-    dplyr::mutate_if(is.numeric, scale)
+  data[, covariates] <- dplyr::mutate_if(data[, covariates], is.numeric, scale)
   data$trt_time <- ifelse(is.na(data$trt_time), 13, data$trt_time)
 
   time.max <- max(data$trt_time[!is.na(data$trt_time)])

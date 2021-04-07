@@ -16,10 +16,13 @@ RoxygenNote: 7.1.1
 Imports:
     MASS,
     stats,
-    Matrix
+    Matrix,
+    dplyr
 Suggests: 
     testthat,
     Rglpk,
     gurobi,
+    survival,
+    nbpMatching, 
     rlang
 

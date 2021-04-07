@@ -50,7 +50,7 @@ coxph_match <- function(n_pairs = 10^10,
   }
 
   if (!is.null(balance_covariates)) {
-    balance_split <- split(df, df[, balance_covariates])
+    balance_split <- split(df, df[, balance_covariates, drop = FALSE])
     matches <- NULL
 
     for (i in 1:length(balance_split)) {
@@ -64,7 +64,7 @@ coxph_match <- function(n_pairs = 10^10,
   matches <- matches[order(matches$distance), ]
 
   if(length(matches$trt.id) > n_pairs) {
-    matches <- matches[1:n_pairs,]
+    matches <- matches[1:n_pairs,, drop = FALSE]
   }
 
   colnames(matches)[1:2] <- c("trt_id", "all_id")
@@ -115,11 +115,11 @@ coxph_match1 <- function(df,
   } else{
     data <- df[, c(covariates), drop = FALSE]
   }
-  data$id <- as.factor(unlist(df[, id]))
-  data$time <- unlist(df[, time])
-  data$trt_time <- unlist(df[, trt_time])
+  data$id <- as.factor(unlist(df[, id, drop = FALSE]))
+  data$time <- unlist(df[, time, drop = FALSE])
+  data$trt_time <- unlist(df[, trt_time, drop = FALSE])
   data$trt <- ifelse(is.na(data$trt_time), 0, 1)
-  data[, covariates] <- dplyr::mutate_if(data[, covariates], is.numeric, scale)
+  data[, covariates] <- dplyr::mutate_if(data[, covariates, drop = FALSE], is.numeric, scale)
   data$trt_time <- ifelse(is.na(data$trt_time), 13, data$trt_time)
 
   time.max <- max(data$trt_time[!is.na(data$trt_time)])
@@ -127,7 +127,7 @@ coxph_match1 <- function(df,
 
   data.cox <-
     data[which(data$time != 1 & data$time != time.max &
-                 data$time <= data$trt_time),]
+                 data$time <= data$trt_time),, drop = FALSE]
   data.cox$start <- data.cox$time - rep(1, length(data.cox$time))
 
   form <- survival::Surv(start, time, trt) ~ . - id - trt_time - iid
@@ -145,8 +145,8 @@ coxph_match1 <- function(df,
         nbp.distance[i, j] <- 999
       }
       if (i < j) {
-        a <- unique(data[which(data$iid == i),]$trt_time)
-        b <- unique(data[which(data$iid == j),]$trt_time)
+        a <- unique(data[which(data$iid == i),, drop = FALSE]$trt_time)
+        b <- unique(data[which(data$iid == j),, drop = FALSE]$trt_time)
         if (a == b) {
           nbp.distance[i, j] <- 999
         }
@@ -154,31 +154,31 @@ coxph_match1 <- function(df,
           trt_time <- min(a, b)
           nbp.t[i, j] <- trt_time
           if (length(data.cox[which(data.cox$iid == i &
-                                    data.cox$time == trt_time - 1),]$p) != 0 &
+                                    data.cox$time == trt_time - 1),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == j &
-                                    data.cox$time == trt_time - 1),]$p) != 0 &
+                                    data.cox$time == trt_time - 1),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == i &
-                                    data.cox$time == trt_time),]$p) != 0 &
+                                    data.cox$time == trt_time),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == j &
-                                    data.cox$time == trt_time),]$p) != 0) {
+                                    data.cox$time == trt_time),, drop = FALSE]$p) != 0) {
             nbp.distance[i, j] <- (data.cox[which(data.cox$iid == i &
-                                                    data.cox$time == trt_time - 1),]$p -
+                                                    data.cox$time == trt_time - 1),, drop = FALSE]$p -
                                      data.cox[which(data.cox$iid == j &
-                                                      data.cox$time == trt_time - 1),]$p) ^ 2
+                                                      data.cox$time == trt_time - 1),, drop = FALSE]$p) ^ 2
           } else {
             nbp.distance[i, j] <- 999
           }
         }
       }
       if (i > j) {
-        nbp.distance[i, j] <- nbp.distance[j, i]
+        nbp.distance[i, j] <- nbp.distance[j, i, drop = FALSE]
       }
     }
   }
   nbp.distance1 <- nbp.distance * 1000
   nbp.distance2 <- nbpMatching::distancematrix(nbp.distance1)
   nbp <- nbpMatching::nonbimatch(nbp.distance2)
-  nbpp <- nbp$halves[which(nbp$halves$Distance != 999000),]
+  nbpp <- nbp$halves[which(nbp$halves$Distance != 999000),, drop = FALSE]
   if (length(unique(data$id)) %% 2 != 0) {
     nbpp <- nbpp[-which(nbpp$Group1.ID == "ghost" | nbpp$Group2.ID == "ghost"),]
   }

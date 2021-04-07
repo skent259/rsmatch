@@ -104,7 +104,7 @@ coxph_match <- function(n_pairs = 10^10,
 #' coxph_match1(df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
 #'
 #' @importFrom stats predict
-#' @export
+#' @no.rd
 coxph_match1 <- function(df,
                          id = "id",
                          time = "time",

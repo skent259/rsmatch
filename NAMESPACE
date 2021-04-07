@@ -3,5 +3,7 @@
 export(balance_columns)
 export(brsmatch)
 export(compute_distances)
+export(coxph_match)
+export(coxph_match1)
 export(output_pairs)
 export(rsm_optimization_model)

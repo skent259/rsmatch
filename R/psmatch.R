@@ -39,7 +39,15 @@ coxph_match <- function(n_pairs = 10^10,
                         time = "time",
                         trt_time = "trt_time",
                         covariates = NULL,
-                        balance_covariates = NULL){
+                        balance_covariates = NULL) {
+
+  if (!is.numeric(df[[trt_time]])) {
+    rlang::warn(c(
+      paste0("Treatment time `", trt_time, "` should be numeric."),
+      i = "Converting to a numeric column."
+    ))
+    df[[trt_time]] <- as.numeric(df[[trt_time]])
+  }
 
   if (!is.null(balance_covariates)) {
     balance_split <- split(df, df[, balance_covariates])
@@ -59,15 +67,8 @@ coxph_match <- function(n_pairs = 10^10,
     matches <- matches[1:n_pairs,]
   }
 
-  matches$pair_id <- c(1:dim(matches)[1])
-
-  matches <- tidyr::pivot_longer(matches, c("trt.id","con.id"),
-                                 names_to = "type", values_to = "id")
-
-  final <- data.frame("id" = matches$id, "pair_id" = matches$pair_id, "type" = matches$type)
-  final$type <- ifelse(final$type == "trt.id", "trt", "all")
-
-  return(final)
+  colnames(matches)[1:2] <- c("trt_id", "all_id")
+  return(output_pairs(matches, id = id, id_list = unique(df[[id]])))
 }
 
 #' Propensity Score Matching with Time-Dependent Covariates

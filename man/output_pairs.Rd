@@ -11,6 +11,8 @@ output_pairs(matched_ids, id = "id", id_list = NULL)
 consists of a matched pair, where "trt_id" provides the id of the treated
 and "all_id" provides the id of the control.}
 
+\item{id}{optional parameter to specify the name of the id column in \code{df}.}
+
 \item{id_list}{optional vector of ids to include in the output.}
 }
 \value{

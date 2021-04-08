@@ -104,7 +104,7 @@ coxph_match <- function(n_pairs = 10^10,
 #' coxph_match1(df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
 #'
 #' @importFrom stats predict
-#' @no.rd
+#' @noRd
 coxph_match1 <- function(df,
                          id = "id",
                          time = "time",
@@ -180,7 +180,7 @@ coxph_match1 <- function(df,
   nbp <- nbpMatching::nonbimatch(nbp.distance2)
   nbpp <- nbp$halves[which(nbp$halves$Distance != 999000),, drop = FALSE]
   if (length(unique(data$id)) %% 2 != 0) {
-    nbpp <- nbpp[-which(nbpp$Group1.ID == "ghost" | nbpp$Group2.ID == "ghost"),]
+    nbpp <- nbpp[-which(nbpp$Group1.ID == "ghost" | nbpp$Group2.ID == "ghost"), , drop = FALSE]
   }
   nbp.id1 <- nbpp$Group1.Row
   nbp.id2 <- nbpp$Group2.Row

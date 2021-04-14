@@ -1,7 +1,7 @@
 #' Balanced Risk Set Matching
 #'
-#' Perform balanced risk set matching as described in Li et al. (2001)
-#' "Balanced Risk Set Matching".  Given a longitudinal data frame with covariate
+#' Perform balanced risk set matching as described in Li et al. (2001) "Balanced
+#' Risk Set Matching".  Given a longitudinal data frame with covariate
 #' information, along with treatment time, build a MIP problem that matches
 #' treated individuals to those that haven't been treated yet (or are never
 #' treated) based on minimizing the Mahalanobis distance between covariates. If
@@ -10,17 +10,23 @@
 #' individual is matched to one other individual.
 #'
 #' @param n_pairs number of pairs desired from matching
-#' @param df data frame containing columns matching the \code{id, time, trt_time} arguments, and covariates.
-#'   This data frame is expected to be in tidy, long format, so that the \code{id}, \code{trt_time}, and
-#'   baseline  variables may be repeated for different values of \code{time}.  Data frame should be unique
-#'   at \code{id} and \code{time}.
-#' @param id optional parameter to specify the name of the id column in \code{df}.
-#' @param time optional parameter to specify the name of the time column in \code{df}.
-#' @param trt_time optional parameter to specify the name of the treatment time column in \code{df}.
-#' @param covariates optional parameter to specify the names of covariates to be used. If \code{NULL}, will
-#'   default to all columns except those named by \code{id, time, trt_time}.
-#' @param balance_covariates optional parameter to specify the names of covariates to be used in balancing.
-#'   If \code{NULL}, will default to all columns except those named by \code{id, time, trt_time}.
+#' @param df data frame containing columns matching the \code{id, time,
+#'   trt_time} arguments, and covariates. This data frame is expected to be in
+#'   tidy, long format, so that the \code{id}, \code{trt_time}, and baseline
+#'   variables may be repeated for different values of \code{time}.  Data frame
+#'   should be unique at \code{id} and \code{time}.
+#' @param id optional parameter to specify the name of the id column in
+#'   \code{df}.
+#' @param time optional parameter to specify the name of the time column in
+#'   \code{df}.
+#' @param trt_time optional parameter to specify the name of the treatment time
+#'   column in \code{df}.
+#' @param covariates optional parameter to specify the names of covariates to be
+#'   used. If \code{NULL}, will default to all columns except those named by
+#'   \code{id, time, trt_time}.
+#' @param balance_covariates optional parameter to specify the names of
+#'   covariates to be used in balancing. If \code{NULL}, will default to all
+#'   columns except those named by \code{id, time, trt_time}.
 #' @param optimizer "gurobi" or "glpk". Specifies which optimizer output to use;
 #'   defaults to "gurobi".
 #' @param verbose logical; if TRUE, will print some useful information for
@@ -63,6 +69,19 @@ brsmatch <- function(n_pairs,
                      options = c("none", "between period treatment")) {
 
   options <- match.arg(options)
+  optimizer <- match.arg(optimizer, c("gurobi", "glpk"))
+  if (optimizer == "gurobi" & !requireNamespace("gurobi", quietly = TRUE)) {
+    rlang::abort(c(
+      "Package 'gurobi' required when `optimizer == 'gurobi'`.",
+      i = "This package requires gurobi to be installed on your computer.",
+      i = "If you have gurobi installed, see https://www.gurobi.com/documentation/9.1/refman/ins_the_r_package.html for package installation. "
+    ))
+  } else if (optimizer == "glpk" & !requireNamespace("Rglpk", quietly = TRUE)) {
+    rlang::abort(c(
+      "Package 'Rglpk' required when `optimizer == 'glpk'`.",
+      i = "Please install the package and retry the funciton."
+    ))
+  }
   if (!is.numeric(df[[trt_time]])) {
     rlang::warn(c(
       paste0("Treatment time `", trt_time, "` should be numeric."),
@@ -86,10 +105,7 @@ brsmatch <- function(n_pairs,
 
   if (verbose) message("Preparing to run optimization model")
   if (optimizer == "gurobi") {
-    # require(gurobi)
     res <- gurobi::gurobi(model)
-    # TODO: add verbose flag to gurobi
-    # matches <- NULL
     matches <- res$x[grepl("f", model$varnames)]
   } else if (optimizer == "glpk") {
     res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,

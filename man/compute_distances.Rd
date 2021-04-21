@@ -14,19 +14,24 @@ compute_distances(
 )
 }
 \arguments{
-\item{df}{data frame containing columns matching the \code{id, time, trt_time} arguments, and covariates.
-This data frame is expected to be in tidy, long format, so that the \code{id}, \code{trt_time}, and
-baseline  variables may be repeated for different values of \code{time}.  Data frame should be unique
-at \code{id} and \code{time}.}
+\item{df}{data frame containing columns matching the \code{id, time,
+  trt_time} arguments, and covariates. This data frame is expected to be in
+tidy, long format, so that the \code{id}, \code{trt_time}, and baseline
+variables may be repeated for different values of \code{time}.  Data frame
+should be unique at \code{id} and \code{time}.}
 
-\item{id}{optional parameter to specify the name of the id column in \code{df}.}
+\item{id}{optional parameter to specify the name of the id column in
+\code{df}.}
 
-\item{time}{optional parameter to specify the name of the time column in \code{df}.}
+\item{time}{optional parameter to specify the name of the time column in
+\code{df}.}
 
-\item{trt_time}{optional parameter to specify the name of the treatment time column in \code{df}.}
+\item{trt_time}{optional parameter to specify the name of the treatment time
+column in \code{df}.}
 
-\item{covariates}{optional parameter to specify the names of covariates to be used. If \code{NULL}, will
-default to all columns except those named by \code{id, time, trt_time}.}
+\item{covariates}{optional parameter to specify the names of covariates to be
+used. If \code{NULL}, will default to all columns except those named by
+\code{id, time, trt_time}.}
 
 \item{options}{additional arguments for rare scenarios, default = "none".  If
 options = 'between period treatment' then matches must be made on the time

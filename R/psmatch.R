@@ -41,6 +41,17 @@ coxph_match <- function(n_pairs = 10^10,
                         covariates = NULL,
                         balance_covariates = NULL) {
 
+
+  if (!requireNamespace("survival", quietly = TRUE) |
+      !requireNamespace("nbpMatching", quietly = TRUE) |
+      !requireNamespace("dplyr", quietly = TRUE) |
+      !requireNamespace("tidyr", quietly = TRUE)) {
+
+    stop("Package \"survival\",  \"dplyr\", \"tidyr\", and \"nbpMatching\" needed for this function to work.
+      Please install them.", call. = FALSE)
+
+  }
+
   if (!is.numeric(df[[trt_time]])) {
     rlang::warn(c(
       paste0("Treatment time `", trt_time, "` should be numeric."),

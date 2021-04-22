@@ -1,5 +1,17 @@
 context("Test the functions used in Balanced Risk-set Matching brsmatching.R")
 
+check_for_gurobi <- function() {
+  if (!requireNamespace("gurobi", quietly = TRUE)) {
+    skip("The package gurobi is not available.")
+  }
+}
+
+check_for_glpk <- function() {
+  if (!requireNamespace("Rglpk", quietly = TRUE)) {
+    skip("The package Rglpk is not available.")
+  }
+}
+
 test_that("compute_distances has correct output", {
   suppressWarnings(library(dplyr))
   wave_data <- data.frame(
@@ -93,6 +105,10 @@ test_that("rsm_optimization_model has correct output", {
   bal <- .balance_columns(df, "hhidpn", "wave", "treatment_time")
   n_unique_id <- length(unique(df$hhidpn))
 
+  ## GLPK, balanced
+  model <- .rsm_optimization_model(1, edges, bal, optimizer = "glpk", balance = TRUE)
+  expect_equal(names(model), c("max", "obj", "varnames", "mat", "dir", "rhs", "types"))
+
   ## Gurobi, balanced
   model <- .rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = TRUE)
   expect_equal(names(model), c("modelsense", "obj", "varnames", "A", "sense", "rhs", "vtype"))
@@ -103,9 +119,6 @@ test_that("rsm_optimization_model has correct output", {
   model <- .rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = FALSE)
   expect_equal(nrow(model$A), 2 + n_unique_id)
   expect_equal(unique(model$vtype), "B")
-  ## GLPK, balanced
-  model <- .rsm_optimization_model(1, edges, bal, optimizer = "glpk", balance = TRUE)
-  expect_equal(names(model), c("max", "obj", "varnames", "mat", "dir", "rhs", "types"))
 })
 
 test_that("rsm_optimization_model() doesn't re-order the edges", {
@@ -128,6 +141,7 @@ test_that("rsm_optimization_model() doesn't re-order the edges", {
   expect_equal(edges$dist, model$obj[1:nrow(edges)])
 
   model <- .rsm_optimization_model(2, edges, bal, optimizer = "glpk", balance = TRUE)
+  check_for_glpk()
   res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
                                            control = list(verbose = verbose, presolve = TRUE)))
   matches <- res$solution[grepl("f", model$varnames)]
@@ -174,6 +188,7 @@ test_that("brsmatch has correct output", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
+  check_for_glpk()
   pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                     optimizer = "glpk", options = "between period treatment")
   expect_equal(colnames(pairs), c("hhidpn", "pair_id", "type"))
@@ -184,7 +199,10 @@ test_that("brsmatch has correct output", {
   # check runs properly with other arguments
   brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
            optimizer = "glpk", balance = FALSE)
-  # TODO: add gurobi tests
+
+  check_for_gurobi()
+  pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+                    optimizer = "gurobi", options = "between period treatment")
 })
 
 
@@ -200,11 +218,11 @@ test_that("options 'between period treatment' works with dead individuals", {
   )
   df <- df[-12, ] # hhidpn=4 dies at wave=3
 
+  check_for_glpk()
   pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                     optimizer = "glpk", options = "between period treatment")
   expect_equal(pairs %>% filter(!is.na(pair_id)) %>% pull(hhidpn),
                c(1,4))
-
 
   df$treatment_time <- df$treatment_time - 1
   edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time", options = "between period treatment")
@@ -227,6 +245,7 @@ test_that("`brsmatch()` works when 'id' is a character vector", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
+  check_for_glpk()
   pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
@@ -250,6 +269,7 @@ test_that("`brsmatch()` returns warning when 'trt_time' is not numeric", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
+  check_for_glpk()
   pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
@@ -289,13 +309,13 @@ test_that("`brsmatch()` works when there are no never-treated individuals", {
   df2 <- df1
   df2[df2$treatment_time == 7, "treatment_time"] <- NA
 
-  pairs <- brsmatch(n_pairs = 2, df = df1, id = "hhidpn", time = "wave",
-                    trt_time = "treatment_time", optimizer = "glpk")
-
   dist1 <- .compute_distances(df1, id = "hhidpn", time = "wave", trt_time = "treatment_time")
   dist2 <- .compute_distances(df2, id = "hhidpn", time = "wave", trt_time = "treatment_time")
   expect_equal(dist1, dist2)
 
+  check_for_glpk()
+  pairs <- brsmatch(n_pairs = 2, df = df1, id = "hhidpn", time = "wave",
+                    trt_time = "treatment_time", optimizer = "glpk")
 })
 
 

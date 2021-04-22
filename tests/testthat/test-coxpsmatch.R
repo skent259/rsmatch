@@ -1,4 +1,11 @@
-context("Test the functions used in psmatch.R")
+context("Test the functions used in coxpsmatch.R")
+
+check_for_coxpsmatch_packages <- function() {
+  if (!requireNamespace("survival", quietly = TRUE) |
+      !requireNamespace("nbpMatching", quietly = TRUE)) {
+    skip("The packages survival or nbpMatching are not available.")
+  }
+}
 
 df <- data.frame(
   hhidpn = rep(1:3, each = 3),
@@ -11,7 +18,7 @@ df <- data.frame(
 )
 
 test_that("`coxpsmatch()` has correct output", {
-
+  check_for_coxpsmatch_packages()
   expect_warning({
     pairs <- coxpsmatch(n_pairs = 1, df = df,
                          id = "hhidpn",
@@ -32,6 +39,7 @@ test_that("`coxpsmatch()` has correct output", {
 
 
 test_that("`coxpsmatch()` works when 'id' is a character vector", {
+  check_for_coxpsmatch_packages()
   expect_warning({
     pairs1 <- coxpsmatch(n_pairs = 1, df = df, id = "hhidpn",
                         time = "wave", trt_time = "treatment_time")
@@ -51,7 +59,7 @@ test_that("`coxpsmatch()` works when 'id' is a character vector", {
 })
 
 test_that("`coxpsmatch()` returns warning when 'trt_time' is not numeric", {
-
+  check_for_coxpsmatch_packages()
   expect_warning({
     pairs1 <- coxpsmatch(n_pairs = 1, df = df, id = "hhidpn",
                           time = "wave", trt_time = "treatment_time")
@@ -69,6 +77,7 @@ test_that("`coxpsmatch()` returns warning when 'trt_time' is not numeric", {
 
 
 test_that("`coxpsmatch()` works when there are no never-treated individuals", {
+  check_for_coxpsmatch_packages()
   df1 <- data.frame(
     hhidpn = rep(1:5, each = 7),
     wave = rep(1:7, 5),

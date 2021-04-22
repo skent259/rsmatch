@@ -107,7 +107,7 @@ brsmatch <- function(n_pairs,
 
   if (verbose) message("Preparing to run optimization model")
   if (optimizer == "gurobi") {
-    res <- gurobi::gurobi(model)
+    res <- gurobi::gurobi(model, params = list(OutputFlag = 1*verbose))
     matches <- res$x[grepl("f", model$varnames)]
   } else if (optimizer == "glpk") {
     res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,

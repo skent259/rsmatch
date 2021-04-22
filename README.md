@@ -1,4 +1,7 @@
 # rsmatch
+<!-- badges: start -->
+[![Travis build status](https://travis-ci.com/skent259/rsmatch.svg?branch=master)](https://travis-ci.com/skent259/rsmatch)
+<!-- badges: end -->
 
 This repo is an R package that implements various forms of **matching on time-varying observational studies** to help in causal inference.  
 The work is in progress and we hope to expand the documentation shortly.

@@ -80,7 +80,7 @@ coxpsmatch <- function(n_pairs = 10^10,
   }
 
   colnames(matches)[1:2] <- c("trt_id", "all_id")
-  return(output_pairs(matches, id = id, id_list = unique(df[[id]])))
+  return(.output_pairs(matches, id = id, id_list = unique(df[[id]])))
 }
 
 #' Propensity Score Matching with Time-Dependent Covariates

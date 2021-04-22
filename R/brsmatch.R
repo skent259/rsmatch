@@ -94,14 +94,14 @@ brsmatch <- function(n_pairs,
     df[[trt_time]] <- df[[trt_time]] - 1
   }
   if (verbose) message("Computing distances from df...")
-  edges <- compute_distances(df, id, time, trt_time, covariates, options)
+  edges <- .compute_distances(df, id, time, trt_time, covariates, options)
   bal <- NULL
   if (balance) {
     if (verbose) message("Building balance columns from df...")
-    bal <- balance_columns(df, id, time, trt_time, balance_covariates)
+    bal <- .balance_columns(df, id, time, trt_time, balance_covariates)
   }
   if (verbose) message("Constructing optimization model...")
-  model <- rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
+  model <- .rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
 
   if (verbose) message("Preparing to run optimization model")
   if (optimizer == "gurobi") {
@@ -114,7 +114,7 @@ brsmatch <- function(n_pairs,
   }
 
   matched_ids <- edges[matches == 1, c("trt_id", "all_id")]
-  output_pairs(matched_ids, id = id, id_list = unique(df[[id]]))
+  .output_pairs(matched_ids, id = id, id_list = unique(df[[id]]))
 }
 
 #' Compute distance on valid matches in Risk Set Matching.
@@ -146,10 +146,10 @@ brsmatch <- function(n_pairs,
 #'   X4 = c(8,9,4,5,6,7,2,3,4)
 #' )
 #'
-#' compute_distances(df, "hhidpn", "wave", "treatment_time")
+#' .compute_distances(df, "hhidpn", "wave", "treatment_time")
 #'
-#' @export
-compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time", covariates = NULL, options = "none") {
+#' @noRd
+.compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time", covariates = NULL, options = "none") {
   if (is.null(covariates)) {
     covariates <- setdiff(colnames(df), c(id, time, trt_time))
   }
@@ -231,11 +231,11 @@ compute_distances <- function(df, id = "id", time = "time", trt_time = "trt_time
 #' )
 #'
 #' balance_covariates <- c("X1", "X2", "X3", "X4")
-#' bal <- balance_columns(df, "hhidpn", "wave", "treatment_time",
+#' bal <- .balance_columns(df, "hhidpn", "wave", "treatment_time",
 #'                        balance_covariates = balance_covariates)
 #'
-#' @export
-balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time", balance_covariates = NULL) {
+#' @noRd
+.balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time", balance_covariates = NULL) {
   if (is.null(balance_covariates)) {
     balance_covariates <- setdiff(colnames(df), c(id, time, trt_time))
   }
@@ -322,10 +322,10 @@ balance_columns <- function(df, id = "id", time = "time", trt_time = "trt_time",
 #' bal <- balance_columns(df, "hhidpn", "wave", "treatment_time")
 #' n_unique_id <- length(unique(df$hhidpn))
 #'
-#' model <- rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = TRUE)
+#' model <- .rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = TRUE)
 #'
-#' @export
-rsm_optimization_model <- function(n_pairs,
+#' @noRd
+.rsm_optimization_model <- function(n_pairs,
                                    edges,
                                    bal_all = NULL,
                                    optimizer = "gurobi",
@@ -460,46 +460,6 @@ rsm_optimization_model <- function(n_pairs,
   return(model)
 }
 
-#' Output pairs to new format
-#'
-#' Takes a data frame with each row as a pair and returns output in long, tidy
-#' format that indicates the matched pairs
-#'
-#' @inheritParams brsmatch
-#' @param matched_ids data frame with two columns: trt_id, all_id.  Each row
-#'   consists of a matched pair, where "trt_id" provides the id of the treated
-#'   and "all_id" provides the id of the control.
-#' @param id_list optional vector of ids to include in the output.
-#'
-#' @return a data frame with columns "id", "pair_id", and "type".  "id" refers
-#'   to the individual ids, "pair_id" is a unique identifier for each pair, and
-#'   "type" indicates whether the id is from treatment ("trt") or control ("all")
-#'
-#' @examples
-#' matched_ids <- data.frame(
-#'   trt_id = c(2, 5, 7),
-#'   all_id = c(3, 1, 4)
-#' )
-#'
-#' output_pairs(matched_ids)
-#'
-#' @export
-output_pairs <- function(matched_ids, id = "id", id_list = NULL) {
-  if (is.null(id_list)) id_list <- unlist(matched_ids, use.names = FALSE)
-  pairs <- data.frame(id = id_list,
-                      pair_id = NA,
-                      type = NA)
-  for (rowid in 1:nrow(matched_ids)) {
-    match_ind <- pairs$id %in% matched_ids[rowid, ]
-    pairs$pair_id[match_ind] <- rowid
-  }
-  trt_ind <- pairs$id %in% matched_ids[, "trt_id"]
-  all_ind <- pairs$id %in% matched_ids[, "all_id"]
-  pairs$type[trt_ind] <- "trt"
-  pairs$type[all_ind] <- "all"
-  names(pairs)[1] <- id
-  return(pairs)
-}
 
 
 

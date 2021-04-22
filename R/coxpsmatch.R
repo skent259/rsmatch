@@ -13,12 +13,12 @@
 #' @inheritParams brsmatch
 #' @param exact_match A vector of optional covariates to perform exact matching
 #'   on. If `NULL`, no exact matching is done.
-#' @return a data frame containing the pair information.  The data frame has
-#'   columns \code{id}, "pair_id", and "type". \code{id} matches the input
-#'   parameter and will contain all ids from the input data frame.  "pair_id"
-#'   refers to the id of the computed pairs; NA values indicate unmatched
-#'   individuals.  "type" indicates whether the individual in the pair is
-#'   considered as treatment ("trt") or control ("all") in that pair.
+#' @return A data frame containing the pair information.  The data frame has
+#'   columns `id`, `pair_id`, and `type`. `id` matches the input parameter and
+#'   will contain all ids from the input data frame.  `pair_id` refers to the id
+#'   of the computed pairs; `NA` values indicate unmatched individuals.  `type`
+#'   indicates whether the individual in the pair is considered as treatment
+#'   ("trt") or control ("all") in that pair.
 #'
 #' @examples
 #' df <- data.frame(
@@ -33,13 +33,13 @@
 #'
 #' if (requireNamespace("survival", quietly = TRUE) &
 #'     requireNamespace("nbpMatching", quietly = TRUE)) {
-#'   coxpsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+#'   coxpsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
 #' }
 #'
 #' @export
 #' @author Mitchell Paukner
 coxpsmatch <- function(n_pairs = 10^10,
-                       df,
+                       data,
                        id = "id",
                        time = "time",
                        trt_time = "trt_time",
@@ -55,16 +55,16 @@ coxpsmatch <- function(n_pairs = 10^10,
 
   }
 
-  if (!is.numeric(df[[trt_time]])) {
+  if (!is.numeric(data[[trt_time]])) {
     rlang::warn(c(
       paste0("Treatment time `", trt_time, "` should be numeric."),
       i = "Converting to a numeric column."
     ))
-    df[[trt_time]] <- as.numeric(df[[trt_time]])
+    data[[trt_time]] <- as.numeric(data[[trt_time]])
   }
 
   if (!is.null(exact_match)) {
-    balance_split <- split(df, df[, exact_match, drop = FALSE])
+    balance_split <- split(data, data[, exact_match, drop = FALSE])
     matches <- NULL
 
     for (i in 1:length(balance_split)) {
@@ -72,7 +72,7 @@ coxpsmatch <- function(n_pairs = 10^10,
                                             trt_time, covariates))
     }
   } else {
-    matches <- .coxps_match(df, id, time, trt_time, covariates)
+    matches <- .coxps_match(data, id, time, trt_time, covariates)
   }
 
   matches <- matches[order(matches$distance), ]
@@ -82,7 +82,7 @@ coxpsmatch <- function(n_pairs = 10^10,
   }
 
   colnames(matches)[1:2] <- c("trt_id", "all_id")
-  return(.output_pairs(matches, id = id, id_list = unique(df[[id]])))
+  return(.output_pairs(matches, id = id, id_list = unique(data[[id]])))
 }
 
 #' Propensity Score Matching with Time-Dependent Covariates

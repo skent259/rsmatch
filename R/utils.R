@@ -4,10 +4,10 @@
 #' format that indicates the matched pairs
 #'
 #' @inheritParams brsmatch
-#' @param matched_ids data frame with two columns: trt_id, all_id.  Each row
+#' @param matched_ids A data.frame with two columns: `trt_id, all_id`.  Each row
 #'   consists of a matched pair, where "trt_id" provides the id of the treated
 #'   and "all_id" provides the id of the control.
-#' @param id_list optional vector of ids to include in the output.
+#' @param id_list An optional vector of ids to include in the output.
 #'
 #' @return a data frame with columns "id", "pair_id", and "type".  "id" refers
 #'   to the individual ids, "pair_id" is a unique identifier for each pair, and

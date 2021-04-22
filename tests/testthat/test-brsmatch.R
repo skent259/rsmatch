@@ -189,7 +189,7 @@ test_that("brsmatch has correct output", {
   )
 
   check_for_glpk()
-  pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                     optimizer = "glpk", options = "between period treatment")
   expect_equal(colnames(pairs), c("hhidpn", "pair_id", "type"))
   expect_equal(length(unique(na.omit(pairs$pair_id))), 1)
@@ -197,11 +197,11 @@ test_that("brsmatch has correct output", {
   expect_equal(pairs$hhidpn[which(pairs$pair_id == 1)], c(2,3))
 
   # check runs properly with other arguments
-  brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
            optimizer = "glpk", balance = FALSE)
 
   check_for_gurobi()
-  pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                     optimizer = "gurobi", options = "between period treatment")
 })
 
@@ -219,7 +219,7 @@ test_that("options 'between period treatment' works with dead individuals", {
   df <- df[-12, ] # hhidpn=4 dies at wave=3
 
   check_for_glpk()
-  pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                     optimizer = "glpk", options = "between period treatment")
   expect_equal(pairs %>% filter(!is.na(pair_id)) %>% pull(hhidpn),
                c(1,4))
@@ -246,12 +246,12 @@ test_that("`brsmatch()` works when 'id' is a character vector", {
   )
 
   check_for_glpk()
-  pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  pairs1 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
   df$hhidpn <- as.character(df$hhidpn)
 
-  pairs2 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  pairs2 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
   expect_equivalent(pairs1[, 2:3], pairs2[, 2:3])
@@ -270,13 +270,13 @@ test_that("`brsmatch()` returns warning when 'trt_time' is not numeric", {
   )
 
   check_for_glpk()
-  pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  pairs1 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
   df$treatment_time <- as.character(df$treatment_time)
 
   expect_warning({
-    pairs2 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+    pairs2 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                        optimizer = "glpk", options = "between period treatment")
   })
 
@@ -314,7 +314,7 @@ test_that("`brsmatch()` works when there are no never-treated individuals", {
   expect_equal(dist1, dist2)
 
   check_for_glpk()
-  pairs <- brsmatch(n_pairs = 2, df = df1, id = "hhidpn", time = "wave",
+  pairs <- brsmatch(n_pairs = 2, data = df1, id = "hhidpn", time = "wave",
                     trt_time = "treatment_time", optimizer = "glpk")
 })
 

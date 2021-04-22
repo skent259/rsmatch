@@ -6,7 +6,7 @@
 \usage{
 coxpsmatch(
   n_pairs = 10^10,
-  df,
+  data,
   id = "id",
   time = "time",
   trt_time = "trt_time",
@@ -15,37 +15,34 @@ coxpsmatch(
 )
 }
 \arguments{
-\item{n_pairs}{number of pairs desired from matching}
+\item{n_pairs}{The number of pairs desired from matching.}
 
-\item{df}{data frame containing columns matching the \code{id, time,
-  trt_time} arguments, and covariates. This data frame is expected to be in
-tidy, long format, so that the \code{id}, \code{trt_time}, and baseline
-variables may be repeated for different values of \code{time}.  Data frame
-should be unique at \code{id} and \code{time}.}
+\item{data}{A data.frame or similar containing columns matching the \verb{id, time, trt_time} arguments, and covariates. This data frame is expected to
+be in tidy, long format, so that \code{id}, \code{trt_time}, and other variables may
+be repeated for different values of \code{time}. The data.frame should be unique
+at \code{id} and \code{time}.}
 
-\item{id}{optional parameter to specify the name of the id column in
-\code{df}.}
+\item{id}{A character specifying the id column name (default \code{'id'}).}
 
-\item{time}{optional parameter to specify the name of the time column in
-\code{df}.}
+\item{time}{A character specifying the time column name (default \code{'time'}).}
 
-\item{trt_time}{optional parameter to specify the name of the treatment time
-column in \code{df}.}
+\item{trt_time}{A character specifying the treatment time column name
+(default \code{'trt_time'}).}
 
-\item{covariates}{optional parameter to specify the names of covariates to be
-used. If \code{NULL}, will default to all columns except those named by
-\code{id, time, trt_time}.}
+\item{covariates}{A character vector specifying the covariates to use for
+matching (default \code{NULL}). If \code{NULL}, this will default to all columns
+except those named by the \code{id}, \code{time}, and \code{trt_time} arguments.}
 
 \item{exact_match}{A vector of optional covariates to perform exact matching
 on. If \code{NULL}, no exact matching is done.}
 }
 \value{
-a data frame containing the pair information.  The data frame has
-columns \code{id}, "pair_id", and "type". \code{id} matches the input
-parameter and will contain all ids from the input data frame.  "pair_id"
-refers to the id of the computed pairs; NA values indicate unmatched
-individuals.  "type" indicates whether the individual in the pair is
-considered as treatment ("trt") or control ("all") in that pair.
+A data frame containing the pair information.  The data frame has
+columns \code{id}, \code{pair_id}, and \code{type}. \code{id} matches the input parameter and
+will contain all ids from the input data frame.  \code{pair_id} refers to the id
+of the computed pairs; \code{NA} values indicate unmatched individuals.  \code{type}
+indicates whether the individual in the pair is considered as treatment
+("trt") or control ("all") in that pair.
 }
 \description{
 Perform propensity score matching as described in Lu (2005) "Propensity Score
@@ -71,7 +68,7 @@ df <- data.frame(
 
 if (requireNamespace("survival", quietly = TRUE) &
     requireNamespace("nbpMatching", quietly = TRUE)) {
-  coxpsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+  coxpsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
 }
 
 }

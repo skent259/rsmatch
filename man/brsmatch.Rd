@@ -87,8 +87,10 @@ df <- data.frame(
   X4 = c(8,9,4,5,6,7,2,3,4)
 )
 
-brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave",
-         trt_time = "treatment_time", optimizer = "glpk")
+if (requireNamespace("Rglpk", quietly = TRUE)) {
+  brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave",
+           trt_time = "treatment_time", optimizer = "glpk")
+}
 
 }
 \author{

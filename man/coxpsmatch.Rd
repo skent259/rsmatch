@@ -69,7 +69,10 @@ df <- data.frame(
   X4 = c(8,9,4,5,6,7,2,3,4)
 )
 
-coxpsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+if (requireNamespace("survival", quietly = TRUE) &
+    requireNamespace("nbpMatching", quietly = TRUE)) {
+  coxpsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+}
 
 }
 \author{

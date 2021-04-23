@@ -75,13 +75,13 @@ brsmatch <- function(n_pairs,
   optimizer <- match.arg(optimizer, c("glpk", "gurobi"))
   if (optimizer == "gurobi" & !requireNamespace("gurobi", quietly = TRUE)) {
     rlang::abort(c(
-      "Package 'gurobi' required when `optimizer == 'gurobi'`.",
-      i = "This package requires gurobi to be installed on your computer.",
+      "Package 'gurobi' must be installed when `optimizer == 'gurobi'`.",
+      i = "This package requires Gurobi to be installed on your computer.",
       i = "If you have gurobi installed, see https://www.gurobi.com/documentation/9.1/refman/ins_the_r_package.html for package installation. "
     ))
   } else if (optimizer == "glpk" & !requireNamespace("Rglpk", quietly = TRUE)) {
     rlang::abort(c(
-      "Package 'Rglpk' required when `optimizer == 'glpk'`.",
+      "Package 'Rglpk' must be installed when `optimizer == 'glpk'`.",
       i = "Please install the package and retry the funciton."
     ))
   }
@@ -96,17 +96,28 @@ brsmatch <- function(n_pairs,
     # need to match on time just before treatment
     data[[trt_time]] <- data[[trt_time]] - 1
   }
-  if (verbose) message("Computing distances from df...")
+
+  if (verbose) {
+    rlang::signal("Computing distance from df...")
+  }
   edges <- .compute_distances(data, id, time, trt_time, covariates, options)
+
   bal <- NULL
   if (balance) {
-    if (verbose) message("Building balance columns from df...")
+    if (verbose) {
+      rlang::signal("Building balance columns from df...")
+    }
     bal <- .balance_columns(data, id, time, trt_time, balance_covariates)
   }
-  if (verbose) message("Constructing optimization model...")
+
+  if (verbose) {
+    rlang::signal("Constructing optimization model...")
+  }
   model <- .rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
 
-  if (verbose) message("Preparing to run optimization model")
+  if (verbose) {
+    rlang::signal("Preparing to run optimization model")
+  }
   if (optimizer == "gurobi") {
     res <- gurobi::gurobi(model, params = list(OutputFlag = 1*verbose))
     matches <- res$x[grepl("f", model$varnames)]
@@ -152,7 +163,10 @@ brsmatch <- function(n_pairs,
 #' .compute_distances(df, "hhidpn", "wave", "treatment_time")
 #'
 #' @noRd
-.compute_distances <- function(data, id = "id", time = "time", trt_time = "trt_time", covariates = NULL, options = "none") {
+.compute_distances <- function(data, id = "id", time = "time",
+                               trt_time = "trt_time", covariates = NULL,
+                               options = "none")
+{
   if (is.null(covariates)) {
     covariates <- setdiff(colnames(data), c(id, time, trt_time))
   }
@@ -238,7 +252,9 @@ brsmatch <- function(n_pairs,
 #'                        balance_covariates = balance_covariates)
 #'
 #' @noRd
-.balance_columns <- function(data, id = "id", time = "time", trt_time = "trt_time", balance_covariates = NULL) {
+.balance_columns <- function(data, id = "id", time = "time",
+                             trt_time = "trt_time", balance_covariates = NULL)
+{
   if (is.null(balance_covariates)) {
     balance_covariates <- setdiff(colnames(data), c(id, time, trt_time))
   }
@@ -250,7 +266,13 @@ brsmatch <- function(n_pairs,
   factor_cov <- balance_covariates[which(bal_cov_types %in% c("factor", "character"))]
   other_cov <- setdiff(balance_covariates, union(numeric_cov, factor_cov))
   if (length(other_cov) > 0) {
-    warning(paste0("Columns ", other_cov, " are of unusable type and will be omitted.  Useable types are numeric, integer, factor, and character"))
+    msg <- c(
+      "All `balance_covariates` must be numeric, integer, factor, or character columns.",
+      x = paste0("Column `", other_cov, "` is a ", sapply(other_cov, class), " vector."),
+      x = paste0("Excluding columns ", paste0("`", other_cov, "`", collapse = " "), " in balancing.")
+    )
+    names(msg)[2:length(msg)] <- "x"
+    rlang::warn(msg)
   }
 
   empty_df <- matrix(nrow = nrow(data), ncol = 0)
@@ -458,7 +480,10 @@ brsmatch <- function(n_pairs,
     model$max <- ifelse(model$max == "min", FALSE, NA)
     return(model)
   } else {
-    stop(paste0("Model optimizer of type ", optimizer, "is not supported.  Use 'gurobi' or 'glpk'."))
+    rlang::abort(c(
+      "`optimizer` must be either 'gurobi' or 'glpk'.",
+      x = paste0("You've specified `optimizer = '", optimizer, "'.")
+    ))
   }
   return(model)
 }

@@ -49,10 +49,10 @@ coxpsmatch <- function(n_pairs = 10^10,
 
   if (!requireNamespace("survival", quietly = TRUE) |
       !requireNamespace("nbpMatching", quietly = TRUE)) {
-
-    stop("Package \"survival\" and \"nbpMatching\" needed for this function to work.
-      Please install them.", call. = FALSE)
-
+    rlang::abort(c(
+      "Package 'survival' and 'nbpMatching' must be installed for `coxpsmatch()` to work.",
+      i = "Please install them."
+    ))
   }
 
   if (!is.numeric(data[[trt_time]])) {

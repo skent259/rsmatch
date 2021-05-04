@@ -7,7 +7,8 @@ Authors@R:
              role = c("aut", "cre"),
              comment = c(ORCID = "0000-0001-8697-9069")),
       person("Mitchell", "Paukner", 
-             role = c("aut")))
+             role = c("aut"),
+             comment = c(ORCID = "0000-0003-3839-5311")))
 Description: rsmatch contains popular methods for matching in time-varying
     observational studies.  Matching is difficult in this scenario because 
     participants can be treated at different times which may have an influence

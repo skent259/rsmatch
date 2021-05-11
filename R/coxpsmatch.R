@@ -44,7 +44,10 @@ coxpsmatch <- function(n_pairs = 10^10,
                        time = "time",
                        trt_time = "trt_time",
                        covariates = NULL,
-                       exact_match = NULL) {
+                       exact_match = NULL,
+                       options = list(
+                         time_lag = FALSE
+                       )) {
 
 
   if (!requireNamespace("survival", quietly = TRUE) |
@@ -123,7 +126,10 @@ coxpsmatch <- function(n_pairs = 10^10,
                          id = "id",
                          time = "time",
                          trt_time = "trt_time",
-                         covariates = NULL) {
+                         covariates = NULL,
+                         options = list(
+                           time_lag = FALSE
+                         )) {
   if(is.null(covariates)){
     data <- df[,-which(names(df) %in% c(id, time, trt_time)), drop = FALSE]
   } else{
@@ -152,6 +158,7 @@ coxpsmatch <- function(n_pairs = 10^10,
   nbp.t <-
     matrix(rep(NA, length(unique(data$iid)) * length(unique(data$iid))),
            ncol = length(unique(data$iid)))
+  t.lag <- -1*options$time_lag
   for (i in 1:length(unique(data$iid))) {
     for (j in 1:length(unique(data$iid))) {
       if (i == j) {
@@ -167,17 +174,17 @@ coxpsmatch <- function(n_pairs = 10^10,
           trt_time <- min(a, b)
           nbp.t[i, j] <- trt_time
           if (length(data.cox[which(data.cox$iid == i &
-                                    data.cox$time == trt_time - 1),, drop = FALSE]$p) != 0 &
+                                    data.cox$time == trt_time + t.lag),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == j &
-                                    data.cox$time == trt_time - 1),, drop = FALSE]$p) != 0 &
+                                    data.cox$time == trt_time + t.lag),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == i &
                                     data.cox$time == trt_time),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == j &
                                     data.cox$time == trt_time),, drop = FALSE]$p) != 0) {
             nbp.distance[i, j] <- (data.cox[which(data.cox$iid == i &
-                                                    data.cox$time == trt_time - 1),, drop = FALSE]$p -
+                                                    data.cox$time == trt_time + t.lag),, drop = FALSE]$p -
                                      data.cox[which(data.cox$iid == j &
-                                                      data.cox$time == trt_time - 1),, drop = FALSE]$p) ^ 2
+                                                      data.cox$time == trt_time + t.lag),, drop = FALSE]$p) ^ 2
           } else {
             nbp.distance[i, j] <- 999
           }

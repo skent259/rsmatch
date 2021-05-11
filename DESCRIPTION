@@ -32,3 +32,5 @@ Suggests:
     survival,
     nbpMatching, 
     rlang
+Depends: 
+    R (>= 2.10)

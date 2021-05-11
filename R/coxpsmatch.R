@@ -134,14 +134,13 @@ coxpsmatch <- function(n_pairs = 10^10,
   data$trt_time <- unlist(df[, trt_time, drop = FALSE])
   data$trt <- ifelse(is.na(data$trt_time), 0, 1)
   data[, covariates] <- dplyr::mutate_if(data[, covariates, drop = FALSE], is.numeric, scale)
-  data$trt_time <- ifelse(is.na(data$trt_time), 13, data$trt_time)
-
   time.max <- max(data$trt_time[!is.na(data$trt_time)])
+  data$trt_time <- ifelse(is.na(data$trt_time), time.max + 1, data$trt_time)
+
   data <- transform(data, iid = as.numeric(id))
 
   data.cox <-
-    data[which(data$time != 1 & data$time != time.max &
-                 data$time <= data$trt_time),, drop = FALSE]
+    data[which(data$time <= data$trt_time),, drop = FALSE]
   data.cox$start <- data.cox$time - rep(1, length(data.cox$time))
 
   form <- survival::Surv(start, time, trt) ~ . - id - trt_time - iid
@@ -213,12 +212,14 @@ coxpsmatch <- function(n_pairs = 10^10,
     }
   }
 
+
   for (i in 1:length(nbp.id1)) {
     trt.id[i] <-
-      as.numeric(as.character(data$id[which(data$iid == trt.id[i])[1]]))
+      as.character(data$id[which(data$iid == trt.id[i])[1]])
     con.id[i] <-
-      as.numeric(as.character(data$id[which(data$iid == con.id[i])[1]]))
+      as.character(data$id[which(data$iid == con.id[i])[1]])
   }
+
 
   coxph_matches <- data.frame("trt.id" = trt.id, "con.id" = con.id,
                               "distance" = nbpp$Distance)

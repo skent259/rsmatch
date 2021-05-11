@@ -11,12 +11,14 @@
 #' individual.
 #'
 #' @inheritParams brsmatch
-#' @return a data frame containing the pair information.  The data frame has
-#'   columns \code{id}, "pair_id", and "type". \code{id} matches the input
-#'   parameter and will contain all ids from the input data frame.  "pair_id"
-#'   refers to the id of the computed pairs; NA values indicate unmatched
-#'   individuals.  "type" indicates whether the individual in the pair is
-#'   considered as treatment ("trt") or control ("all") in that pair.
+#' @param exact_match A vector of optional covariates to perform exact matching
+#'   on. If `NULL`, no exact matching is done.
+#' @return A data frame containing the pair information.  The data frame has
+#'   columns `id`, `pair_id`, and `type`. `id` matches the input parameter and
+#'   will contain all ids from the input data frame.  `pair_id` refers to the id
+#'   of the computed pairs; `NA` values indicate unmatched individuals.  `type`
+#'   indicates whether the individual in the pair is considered as treatment
+#'   ("trt") or control ("all") in that pair.
 #'
 #' @examples
 #' df <- data.frame(
@@ -29,47 +31,48 @@
 #'   X4 = c(8,9,4,5,6,7,2,3,4)
 #' )
 #'
-#' coxph_match(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+#' if (requireNamespace("survival", quietly = TRUE) &
+#'     requireNamespace("nbpMatching", quietly = TRUE)) {
+#'   coxpsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+#' }
 #'
 #' @export
 #' @author Mitchell Paukner
-coxph_match <- function(n_pairs = 10^10,
-                        df,
-                        id = "id",
-                        time = "time",
-                        trt_time = "trt_time",
-                        covariates = NULL,
-                        balance_covariates = NULL) {
+coxpsmatch <- function(n_pairs = 10^10,
+                       data,
+                       id = "id",
+                       time = "time",
+                       trt_time = "trt_time",
+                       covariates = NULL,
+                       exact_match = NULL) {
 
 
   if (!requireNamespace("survival", quietly = TRUE) |
-      !requireNamespace("nbpMatching", quietly = TRUE) |
-      !requireNamespace("dplyr", quietly = TRUE) |
-      !requireNamespace("tidyr", quietly = TRUE)) {
-
-    stop("Package \"survival\",  \"dplyr\", \"tidyr\", and \"nbpMatching\" needed for this function to work.
-      Please install them.", call. = FALSE)
-
+      !requireNamespace("nbpMatching", quietly = TRUE)) {
+    rlang::abort(c(
+      "Package 'survival' and 'nbpMatching' must be installed for `coxpsmatch()` to work.",
+      i = "Please install them."
+    ))
   }
 
-  if (!is.numeric(df[[trt_time]])) {
+  if (!is.numeric(data[[trt_time]])) {
     rlang::warn(c(
       paste0("Treatment time `", trt_time, "` should be numeric."),
       i = "Converting to a numeric column."
     ))
-    df[[trt_time]] <- as.numeric(df[[trt_time]])
+    data[[trt_time]] <- as.numeric(data[[trt_time]])
   }
 
-  if (!is.null(balance_covariates)) {
-    balance_split <- split(df, df[, balance_covariates, drop = FALSE])
+  if (!is.null(exact_match)) {
+    balance_split <- split(data, data[, exact_match, drop = FALSE])
     matches <- NULL
 
     for (i in 1:length(balance_split)) {
-      matches <- rbind(matches,coxph_match1(balance_split[[i]], id, time,
+      matches <- rbind(matches,.coxps_match(balance_split[[i]], id, time,
                                             trt_time, covariates))
     }
   } else {
-    matches <- coxph_match1(df, id, time, trt_time, covariates)
+    matches <- .coxps_match(data, id, time, trt_time, covariates)
   }
 
   matches <- matches[order(matches$distance), ]
@@ -79,7 +82,7 @@ coxph_match <- function(n_pairs = 10^10,
   }
 
   colnames(matches)[1:2] <- c("trt_id", "all_id")
-  return(output_pairs(matches, id = id, id_list = unique(df[[id]])))
+  return(.output_pairs(matches, id = id, id_list = unique(data[[id]])))
 }
 
 #' Propensity Score Matching with Time-Dependent Covariates
@@ -112,11 +115,11 @@ coxph_match <- function(n_pairs = 10^10,
 #'   X4 = c(8,9,4,5,6,7,2,3,4)
 #' )
 #'
-#' coxph_match1(df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+#' .coxps_match(df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time")
 #'
 #' @importFrom stats predict
 #' @noRd
-coxph_match1 <- function(df,
+.coxps_match <- function(df,
                          id = "id",
                          time = "time",
                          trt_time = "trt_time",

@@ -1,5 +1,17 @@
 context("Test the functions used in Balanced Risk-set Matching brsmatching.R")
 
+check_for_gurobi <- function() {
+  if (!requireNamespace("gurobi", quietly = TRUE)) {
+    skip("The package gurobi is not available.")
+  }
+}
+
+check_for_glpk <- function() {
+  if (!requireNamespace("Rglpk", quietly = TRUE)) {
+    skip("The package Rglpk is not available.")
+  }
+}
+
 test_that("compute_distances has correct output", {
   suppressWarnings(library(dplyr))
   wave_data <- data.frame(
@@ -19,10 +31,10 @@ test_that("compute_distances has correct output", {
   df <- wave_data %>%
     left_join(treated_data, by = "hhidpn") %>%
     select(-treatment)
-  edges <- compute_distances(df, "hhidpn", "wave", "treatment_time")
+  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time")
 
   df$treatment_time <- df$treatment_time - 1
-  edges <- compute_distances(df, "hhidpn", "wave", "treatment_time", options = "between period treatment")
+  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time", options = "between period treatment")
 
   expect_equal(edges$trt_id, c(1,1,2))
   expect_equal(edges$all_id, c(2,3,3))
@@ -47,7 +59,7 @@ test_that("balance_columns has correct output", {
   # mix of character and numeric variables
   balance_covariates <- c("X1", "X2", "X3", "X4")
   df$treatment_time <- df$treatment_time - 1
-  bal <- balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
+  bal <- .balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
 
   expect_equal(length(colnames(bal)), 10)
   expect_equivalent(bal[, "X1.q1"], c(rep(0,3), rep(1,6)))
@@ -61,7 +73,7 @@ test_that("balance_columns has correct output", {
 
   # single character balance variable
   balance_covariates <- c("X2")
-  bal <- balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
+  bal <- .balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
 
   expect_equal(length(colnames(bal)), 4)
   expect_equivalent(bal[, "X2a"], c(rep(1,6), rep(0,3)))
@@ -69,7 +81,7 @@ test_that("balance_columns has correct output", {
 
   # single numeric balance variable
   balance_covariates <- c("X1")
-  bal <- balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
+  bal <- .balance_columns(df, "hhidpn", "wave", "treatment_time", balance_covariates)
 
   expect_equal(length(colnames(bal)), 4)
   expect_equivalent(bal[, "X1.q1"], c(rep(0,3), rep(1,6)))
@@ -89,23 +101,24 @@ test_that("rsm_optimization_model has correct output", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
   df$treatment_time <- df$treatment_time - 1
-  edges <- compute_distances(df, "hhidpn", "wave", "treatment_time")
-  bal <- balance_columns(df, "hhidpn", "wave", "treatment_time")
+  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time")
+  bal <- .balance_columns(df, "hhidpn", "wave", "treatment_time")
   n_unique_id <- length(unique(df$hhidpn))
 
+  ## GLPK, balanced
+  model <- .rsm_optimization_model(1, edges, bal, optimizer = "glpk", balance = TRUE)
+  expect_equal(names(model), c("max", "obj", "varnames", "mat", "dir", "rhs", "types"))
+
   ## Gurobi, balanced
-  model <- rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = TRUE)
+  model <- .rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = TRUE)
   expect_equal(names(model), c("modelsense", "obj", "varnames", "A", "sense", "rhs", "vtype"))
   expect_equal(model$obj[1:nrow(edges)], edges$dist)
   expect_equivalent(as.matrix(model$A[3:(2+n_unique_id), 1:nrow(edges)]),
                     matrix(c(1,0,1, 0,1,1, 1,1,0), nrow = n_unique_id, byrow = TRUE))
   ## Gurobi, unbalanced
-  model <- rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = FALSE)
+  model <- .rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = FALSE)
   expect_equal(nrow(model$A), 2 + n_unique_id)
   expect_equal(unique(model$vtype), "B")
-  ## GLPK, balanced
-  model <- rsm_optimization_model(1, edges, bal, optimizer = "glpk", balance = TRUE)
-  expect_equal(names(model), c("max", "obj", "varnames", "mat", "dir", "rhs", "types"))
 })
 
 test_that("rsm_optimization_model() doesn't re-order the edges", {
@@ -124,17 +137,18 @@ test_that("rsm_optimization_model() doesn't re-order the edges", {
   )
   verbose <- interactive()
 
-  model <- rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = TRUE)
+  model <- .rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = TRUE)
   expect_equal(edges$dist, model$obj[1:nrow(edges)])
 
-  model <- rsm_optimization_model(2, edges, bal, optimizer = "glpk", balance = TRUE)
+  model <- .rsm_optimization_model(2, edges, bal, optimizer = "glpk", balance = TRUE)
+  check_for_glpk()
   res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
                                            control = list(verbose = verbose, presolve = TRUE)))
   matches <- res$solution[grepl("f", model$varnames)]
   matched_ids <- edges[matches == 1, c("trt_id", "all_id")]
-  output_pairs(matched_ids, "id", id_list = sample(unique(bal$id)))
+  .output_pairs(matched_ids, "id", id_list = sample(unique(bal$id)))
 
-  model <- rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = FALSE)
+  model <- .rsm_optimization_model(2, edges, bal, optimizer = "gurobi", balance = FALSE)
   expect_equal(edges$dist, model$obj[1:nrow(edges)])
 
 })
@@ -145,20 +159,20 @@ test_that("output_pairs() has correct output.", {
     all_id = c(3, 1, 4)
   )
 
-  out <- output_pairs(matched_ids)
+  out <- .output_pairs(matched_ids)
   expect_equal(colnames(out), c("id", "pair_id", "type"))
   expect_setequal(out$id, c(1,2,3,4,5,7))
   expect_equal(unique(as.vector(table(out$pair_id))), 2)
   expect_equal(unique(as.vector(table(out$type))), nrow(matched_ids))
 
-  out <- output_pairs(matched_ids, id_list = 1:10)
+  out <- .output_pairs(matched_ids, id_list = 1:10)
   expect_setequal(out$id, 1:10)
   expect_equal(unique(as.vector(table(out$pair_id))), 2)
   expect_equal(unique(as.vector(table(out$type))), nrow(matched_ids))
   expect(is.na(unique(out[out$id %in% c(6, 8, 9, 10), "pair_id"])), "pair_id should have NA values at id 6, 8, 9, and 10")
   expect(is.na(unique(out[out$id %in% c(6, 8, 9, 10), "type"])), "type should have NA values at id 6, 8, 9, and 10")
 
-  out <- output_pairs(matched_ids, id = "hhidpn")
+  out <- .output_pairs(matched_ids, id = "hhidpn")
   expect_equal(colnames(out), c("hhidpn", "pair_id", "type"))
 
 })
@@ -174,7 +188,8 @@ test_that("brsmatch has correct output", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
-  pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  check_for_glpk()
+  pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                     optimizer = "glpk", options = "between period treatment")
   expect_equal(colnames(pairs), c("hhidpn", "pair_id", "type"))
   expect_equal(length(unique(na.omit(pairs$pair_id))), 1)
@@ -182,9 +197,12 @@ test_that("brsmatch has correct output", {
   expect_equal(pairs$hhidpn[which(pairs$pair_id == 1)], c(2,3))
 
   # check runs properly with other arguments
-  brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
            optimizer = "glpk", balance = FALSE)
-  # TODO: add gurobi tests
+
+  check_for_gurobi()
+  pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+                    optimizer = "gurobi", options = "between period treatment")
 })
 
 
@@ -200,14 +218,14 @@ test_that("options 'between period treatment' works with dead individuals", {
   )
   df <- df[-12, ] # hhidpn=4 dies at wave=3
 
-  pairs <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  check_for_glpk()
+  pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                     optimizer = "glpk", options = "between period treatment")
   expect_equal(pairs %>% filter(!is.na(pair_id)) %>% pull(hhidpn),
                c(1,4))
 
-
   df$treatment_time <- df$treatment_time - 1
-  edges <- compute_distances(df, "hhidpn", "wave", "treatment_time", options = "between period treatment")
+  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time", options = "between period treatment")
   # expect that the possible pairs should be 1,2 1,3 1,4 or
   expect_equal(edges$trt_id, c(1,1,1,2))
   expect_equal(edges$all_id, c(2,3,4,3))
@@ -227,12 +245,13 @@ test_that("`brsmatch()` works when 'id' is a character vector", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
-  pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  check_for_glpk()
+  pairs1 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
   df$hhidpn <- as.character(df$hhidpn)
 
-  pairs2 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  pairs2 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
   expect_equivalent(pairs1[, 2:3], pairs2[, 2:3])
@@ -250,13 +269,14 @@ test_that("`brsmatch()` returns warning when 'trt_time' is not numeric", {
     X4 = c(8,9,4,5,6,7,2,3,4)
   )
 
-  pairs1 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+  check_for_glpk()
+  pairs1 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                      optimizer = "glpk", options = "between period treatment")
 
   df$treatment_time <- as.character(df$treatment_time)
 
   expect_warning({
-    pairs2 <- brsmatch(n_pairs = 1, df = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
+    pairs2 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
                        optimizer = "glpk", options = "between period treatment")
   })
 
@@ -289,13 +309,13 @@ test_that("`brsmatch()` works when there are no never-treated individuals", {
   df2 <- df1
   df2[df2$treatment_time == 7, "treatment_time"] <- NA
 
-  pairs <- brsmatch(n_pairs = 2, df = df1, id = "hhidpn", time = "wave",
-                    trt_time = "treatment_time", optimizer = "glpk")
-
-  dist1 <- compute_distances(df1, id = "hhidpn", time = "wave", trt_time = "treatment_time")
-  dist2 <- compute_distances(df2, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+  dist1 <- .compute_distances(df1, id = "hhidpn", time = "wave", trt_time = "treatment_time")
+  dist2 <- .compute_distances(df2, id = "hhidpn", time = "wave", trt_time = "treatment_time")
   expect_equal(dist1, dist2)
 
+  check_for_glpk()
+  pairs <- brsmatch(n_pairs = 2, data = df1, id = "hhidpn", time = "wave",
+                    trt_time = "treatment_time", optimizer = "glpk")
 })
 
 

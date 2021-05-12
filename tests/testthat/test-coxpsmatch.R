@@ -28,7 +28,7 @@ test_that("`coxpsmatch()` has correct output", {
   expect_equal(colnames(pairs), c("hhidpn", "pair_id", "type"))
   expect_equal(length(unique(na.omit(pairs$pair_id))), 1)
   expect_equal(unique(pairs$hhidpn), unique(df$hhidpn))
-  expect_equal(pairs$hhidpn[which(pairs$pair_id == 1)], c(2,3))
+  expect_equal(pairs$hhidpn[which(pairs$pair_id == 1)], c(1,2))
 
   # check runs properly with other arguments
   expect_warning({

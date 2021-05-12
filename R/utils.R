@@ -1,3 +1,7 @@
+#' Not in, as opposed to %in%
+#' @noRd
+`%ni%` <- Negate(`%in%`)
+
 #' Output pairs to new format
 #'
 #' Takes a data frame with each row as a pair and returns output in long, tidy

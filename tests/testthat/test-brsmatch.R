@@ -34,7 +34,7 @@ test_that("compute_distances has correct output", {
   edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time")
 
   df$treatment_time <- df$treatment_time - 1
-  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time", options = "between period treatment")
+  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time", options = list(time_lag = TRUE))
 
   expect_equal(edges$trt_id, c(1,1,2))
   expect_equal(edges$all_id, c(2,3,3))
@@ -190,7 +190,7 @@ test_that("brsmatch has correct output", {
 
   check_for_glpk()
   pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-                    optimizer = "glpk", options = "between period treatment")
+                    options = list(time_lag = TRUE, optimizer = "glpk"))
   expect_equal(colnames(pairs), c("hhidpn", "pair_id", "type"))
   expect_equal(length(unique(na.omit(pairs$pair_id))), 1)
   expect_equal(unique(pairs$hhidpn), unique(df$hhidpn))
@@ -198,11 +198,11 @@ test_that("brsmatch has correct output", {
 
   # check runs properly with other arguments
   brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-           optimizer = "glpk", balance = FALSE)
+           balance = FALSE)
 
   check_for_gurobi()
   pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-                    optimizer = "gurobi", options = "between period treatment")
+                    options = list(time_lag = TRUE, optimizer = "gurobi"))
 })
 
 
@@ -220,12 +220,12 @@ test_that("options 'between period treatment' works with dead individuals", {
 
   check_for_glpk()
   pairs <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-                    optimizer = "glpk", options = "between period treatment")
+                    options = list(time_lag = TRUE, optimizer = "glpk"))
   expect_equal(pairs %>% filter(!is.na(pair_id)) %>% pull(hhidpn),
                c(1,4))
 
   df$treatment_time <- df$treatment_time - 1
-  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time", options = "between period treatment")
+  edges <- .compute_distances(df, "hhidpn", "wave", "treatment_time", options = list(time_lag = TRUE))
   # expect that the possible pairs should be 1,2 1,3 1,4 or
   expect_equal(edges$trt_id, c(1,1,1,2))
   expect_equal(edges$all_id, c(2,3,4,3))
@@ -247,12 +247,12 @@ test_that("`brsmatch()` works when 'id' is a character vector", {
 
   check_for_glpk()
   pairs1 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-                     optimizer = "glpk", options = "between period treatment")
+                     options = list(time_lag = TRUE, optimizer = "glpk"))
 
   df$hhidpn <- as.character(df$hhidpn)
 
   pairs2 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-                     optimizer = "glpk", options = "between period treatment")
+                     options = list(time_lag = TRUE, optimizer = "glpk"))
 
   expect_equivalent(pairs1[, 2:3], pairs2[, 2:3])
   expect_equivalent(as.character(pairs1$hhidpn), pairs2$hhidpn)
@@ -271,13 +271,13 @@ test_that("`brsmatch()` returns warning when 'trt_time' is not numeric", {
 
   check_for_glpk()
   pairs1 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-                     optimizer = "glpk", options = "between period treatment")
+                     options = list(time_lag = TRUE, optimizer = "glpk"))
 
   df$treatment_time <- as.character(df$treatment_time)
 
   expect_warning({
     pairs2 <- brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave", trt_time = "treatment_time",
-                       optimizer = "glpk", options = "between period treatment")
+                       options = list(time_lag = TRUE, optimizer = "glpk"))
   })
 
   expect_equivalent(pairs1, pairs2)
@@ -314,8 +314,8 @@ test_that("`brsmatch()` works when there are no never-treated individuals", {
   expect_equal(dist1, dist2)
 
   check_for_glpk()
-  pairs <- brsmatch(n_pairs = 2, data = df1, id = "hhidpn", time = "wave",
-                    trt_time = "treatment_time", optimizer = "glpk")
+  pairs <- brsmatch(n_pairs = 2, data = df1,
+                    id = "hhidpn", time = "wave", trt_time = "treatment_time")
 })
 
 

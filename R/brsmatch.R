@@ -22,20 +22,20 @@
 #' @param covariates A character vector specifying the covariates to use for
 #'   matching (default `NULL`). If `NULL`, this will default to all columns
 #'   except those named by the `id`, `time`, and `trt_time` arguments.
+#' @param balance A logical value indicating whether to including balancing
+#'   constraints in the matching process.
 #' @param balance_covariates A character vector specifying the covariates to use
 #'   for balancing (default `NULL`).  If `NULL`, this will default to all
 #'   columns except those named by the `id`, `time`, and `trt_time` arguments.
-#' @param optimizer The optimizer to use (default `'glpk'`). The option
+#' @param options A list of additional parameters with the following components:
+#'   * `time_lag` A logical value indicating whether the matches should be made
+#'   on the time period preceding treatment.  This can help avoid confounding if
+#'   treatment happens between two periods.
+#'   * `verbose` A logical value indicating whether to print information to the
+#'   console during a potentially long matching process.
+#'   * `optimizer` The optimizer to use (default `'glpk'`). The option
 #'   `'gurobi'` requires an external license and package, but offers speed
 #'   improvements.
-#' @param verbose A logical value indicating whether to print information to the
-#'   console during a potentially long matching process.
-#' @param balance A logical value indicating whether to including balancing
-#'   constraints in the matching process.
-#' @param options Some additional arguments for rare scenarios (default
-#'   `'none'`).  If options = 'between period treatment' then matches must be
-#'   made on the time period preceding treatment and some special care must be
-#'   taken.
 #'
 #' @return A data frame containing the pair information.  The data frame has
 #'   columns `id`, `pair_id`, and `type`. `id` matches the input parameter and
@@ -45,19 +45,20 @@
 #'   ("trt") or control ("all") in that pair.
 #'
 #' @examples
-#' df <- data.frame(
-#'   hhidpn = rep(1:3, each = 3),
-#'   wave = rep(1:3, 3),
-#'   treatment_time = rep(c(2,3,NA), each = 3),
-#'   X1 = c(2,2,2,3,3,3,9,9,9),
-#'   X2 = rep(c("a","a","b"), each = 3),
-#'   X3 = c(9,4,5,6,7,2,3,4,8),
-#'   X4 = c(8,9,4,5,6,7,2,3,4)
-#' )
-#'
 #' if (requireNamespace("Rglpk", quietly = TRUE)) {
-#'   brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave",
-#'            trt_time = "treatment_time", optimizer = "glpk")
+#'   library(dplyr, quietly = TRUE)
+#'   pairs <- brsmatch(n_pairs = 13,
+#'                     data = oasis,
+#'                     id = "subject_id",
+#'                     time = "visit",
+#'                     trt_time = "time_of_ad",
+#'                     balance = FALSE)
+#'
+#'   na.omit(pairs)
+#'
+#'   # evaluate the first match
+#'   first_match <- pairs$subject_id[which(pairs$pair_id == 1)]
+#'   oasis %>% dplyr::filter(subject_id %in% first_match)
 #' }
 #'
 #' @export
@@ -65,14 +66,21 @@
 brsmatch <- function(n_pairs,
                      data,
                      id = "id", time = "time", trt_time = "trt_time",
-                     covariates = NULL, balance_covariates = NULL,
-                     optimizer = c("glpk", "gurobi"), verbose = FALSE,
+                     covariates = NULL,
                      balance = TRUE,
-                     options = c("none", "between period treatment"))
+                     balance_covariates = NULL,
+                     options = list(
+                       time_lag = FALSE,
+                       verbose = FALSE,
+                       optimizer = c("glpk", "gurobi")
+                     ))
 {
+  if ("time_lag" %ni% names(options)) options$time_lag <- FALSE
+  if ("verbose" %ni% names(options)) options$verbose <- FALSE
+  if ("optimizer" %ni% names(options)) options$optimizer <- "glpk"
+  optimizer <- match.arg(options$optimizer, c("glpk", "gurobi"))
+  verbose <- options$verbose
 
-  options <- match.arg(options, c("none", "between period treatment"))
-  optimizer <- match.arg(optimizer, c("glpk", "gurobi"))
   if (optimizer == "gurobi" & !requireNamespace("gurobi", quietly = TRUE)) {
     rlang::abort(c(
       "Package 'gurobi' must be installed when `optimizer == 'gurobi'`.",
@@ -92,7 +100,7 @@ brsmatch <- function(n_pairs,
     ))
     data[[trt_time]] <- as.numeric(data[[trt_time]])
   }
-  if (options == "between period treatment") {
+  if (options$time_lag) {
     # need to match on time just before treatment
     data[[trt_time]] <- data[[trt_time]] - 1
   }
@@ -165,7 +173,11 @@ brsmatch <- function(n_pairs,
 #' @noRd
 .compute_distances <- function(data, id = "id", time = "time",
                                trt_time = "trt_time", covariates = NULL,
-                               options = "none")
+                               options = list(
+                                 time_lag = FALSE,
+                                 verbose = FALSE,
+                                 optimizer = c("glpk", "gurobi")
+                               ))
 {
   if (is.null(covariates)) {
     covariates <- setdiff(colnames(data), c(id, time, trt_time))
@@ -196,7 +208,7 @@ brsmatch <- function(n_pairs,
                                   inverted = TRUE)
       valid_match <- df_at_trt[[id]] != i & # can't match control with itself
         (df_at_trt[[trt_time]] > trt_time_i | df_at_trt[[trt_time]] == 0) # control receives treatment later, or not at all
-      if (options == "between period treatment") {
+      if (options$time_lag) {
         # potential matches must also exist at trt_time (unless trt_time is the last period)
         exist_after_trt <- df_at_trt[[id]] %in% data[data[[time]] == trt_time_i + 1, ][[id]]
         valid_match <- valid_match & (exist_after_trt | trt_time_i == max(data[[time]]) )

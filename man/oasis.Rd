@@ -9,7 +9,7 @@ A data frame with 115 rows and 11 variables:
 \describe{
 \item{subject_id}{unique subject identifier}
 \item{visit}{visit order}
-\item{trt_time}{visit that a patient had AD diagnosis}
+\item{time_of_ad}{visit in which a patient first had AD diagnosis}
 \item{m_f}{male or female}
 \item{educ}{years of education}
 \item{ses}{socioeconomic status (-1 for missing)}

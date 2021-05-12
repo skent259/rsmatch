@@ -26,13 +26,13 @@ oasis <- df1 %>%
   ) %>%
   dplyr::ungroup() %>%
   dplyr::select(
-    Subject.ID, Visit, trt_time, # core variablees
+    Subject.ID, Visit, trt_time, # core variables
     M.F, EDUC, SES, # baseline covariates
     Age, MR.Delay, eTIV, nWBV, ASF
   )
 
 # clean up the names
-colnames(oasis) <- c("subject_id", "visit", "trt_time",
+colnames(oasis) <- c("subject_id", "visit", "time_of_ad",
                    "m_f", "educ", "ses",
                    "age", "mr_delay", "e_tiv", "n_wbv", "asf")
 

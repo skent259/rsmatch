@@ -44,7 +44,10 @@ coxpsmatch <- function(n_pairs = 10^10,
                        time = "time",
                        trt_time = "trt_time",
                        covariates = NULL,
-                       exact_match = NULL) {
+                       exact_match = NULL,
+                       options = list(
+                         time_lag = FALSE
+                       )) {
 
 
   if (!requireNamespace("survival", quietly = TRUE) |
@@ -123,7 +126,10 @@ coxpsmatch <- function(n_pairs = 10^10,
                          id = "id",
                          time = "time",
                          trt_time = "trt_time",
-                         covariates = NULL) {
+                         covariates = NULL,
+                         options = list(
+                           time_lag = FALSE
+                         )) {
   if(is.null(covariates)){
     data <- df[,-which(names(df) %in% c(id, time, trt_time)), drop = FALSE]
   } else{
@@ -134,14 +140,13 @@ coxpsmatch <- function(n_pairs = 10^10,
   data$trt_time <- unlist(df[, trt_time, drop = FALSE])
   data$trt <- ifelse(is.na(data$trt_time), 0, 1)
   data[, covariates] <- dplyr::mutate_if(data[, covariates, drop = FALSE], is.numeric, scale)
-  data$trt_time <- ifelse(is.na(data$trt_time), 13, data$trt_time)
-
   time.max <- max(data$trt_time[!is.na(data$trt_time)])
+  data$trt_time <- ifelse(is.na(data$trt_time), time.max + 1, data$trt_time)
+
   data <- transform(data, iid = as.numeric(id))
 
   data.cox <-
-    data[which(data$time != 1 & data$time != time.max &
-                 data$time <= data$trt_time),, drop = FALSE]
+    data[which(data$time <= data$trt_time),, drop = FALSE]
   data.cox$start <- data.cox$time - rep(1, length(data.cox$time))
 
   form <- survival::Surv(start, time, trt) ~ . - id - trt_time - iid
@@ -153,6 +158,7 @@ coxpsmatch <- function(n_pairs = 10^10,
   nbp.t <-
     matrix(rep(NA, length(unique(data$iid)) * length(unique(data$iid))),
            ncol = length(unique(data$iid)))
+  t.lag <- -1*options$time_lag
   for (i in 1:length(unique(data$iid))) {
     for (j in 1:length(unique(data$iid))) {
       if (i == j) {
@@ -168,17 +174,17 @@ coxpsmatch <- function(n_pairs = 10^10,
           trt_time <- min(a, b)
           nbp.t[i, j] <- trt_time
           if (length(data.cox[which(data.cox$iid == i &
-                                    data.cox$time == trt_time - 1),, drop = FALSE]$p) != 0 &
+                                    data.cox$time == trt_time + t.lag),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == j &
-                                    data.cox$time == trt_time - 1),, drop = FALSE]$p) != 0 &
+                                    data.cox$time == trt_time + t.lag),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == i &
                                     data.cox$time == trt_time),, drop = FALSE]$p) != 0 &
               length(data.cox[which(data.cox$iid == j &
                                     data.cox$time == trt_time),, drop = FALSE]$p) != 0) {
             nbp.distance[i, j] <- (data.cox[which(data.cox$iid == i &
-                                                    data.cox$time == trt_time - 1),, drop = FALSE]$p -
+                                                    data.cox$time == trt_time + t.lag),, drop = FALSE]$p -
                                      data.cox[which(data.cox$iid == j &
-                                                      data.cox$time == trt_time - 1),, drop = FALSE]$p) ^ 2
+                                                      data.cox$time == trt_time + t.lag),, drop = FALSE]$p) ^ 2
           } else {
             nbp.distance[i, j] <- 999
           }
@@ -213,12 +219,14 @@ coxpsmatch <- function(n_pairs = 10^10,
     }
   }
 
+
   for (i in 1:length(nbp.id1)) {
     trt.id[i] <-
-      as.numeric(as.character(data$id[which(data$iid == trt.id[i])[1]]))
+      as.character(data$id[which(data$iid == trt.id[i])[1]])
     con.id[i] <-
-      as.numeric(as.character(data$id[which(data$iid == con.id[i])[1]]))
+      as.character(data$id[which(data$iid == con.id[i])[1]])
   }
+
 
   coxph_matches <- data.frame("trt.id" = trt.id, "con.id" = con.id,
                               "distance" = nbpp$Distance)

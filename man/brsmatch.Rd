@@ -13,6 +13,7 @@ brsmatch(
   covariates = NULL,
   balance = TRUE,
   balance_covariates = NULL,
+  exact_match = NULL,
   options = list(time_lag = FALSE, verbose = FALSE, optimizer = c("glpk", "gurobi"))
 )
 }
@@ -42,16 +43,18 @@ constraints in the matching process.}
 for balancing (default \code{NULL}).  If \code{NULL}, this will default to all
 columns except those named by the \code{id}, \code{time}, and \code{trt_time} arguments.}
 
+\item{exact_match}{A vector of optional covariates to perform exact matching
+on. If \code{NULL}, no exact matching is done.}
+
 \item{options}{A list of additional parameters with the following components:
 \itemize{
 \item \code{time_lag} A logical value indicating whether the matches should be made
 on the time period preceding treatment.  This can help avoid confounding if
-treatment happens between two periods.
-\item \code{verbose} A logical value indicating whether to print information to the
-console during a potentially long matching process.
-\item \code{optimizer} The optimizer to use (default \code{'glpk'}). The option
-\code{'gurobi'} requires an external license and package, but offers speed
-improvements.
+treatment happens between two periods. * \code{verbose} A logical value
+indicating whether to print information to the console during a potentially
+long matching process. * \code{optimizer} The optimizer to use (default
+\code{'glpk'}). The option \code{'gurobi'} requires an external license and package,
+but offers speed improvements.
 }}
 }
 \value{
@@ -71,6 +74,13 @@ treated) based on minimizing the Mahalanobis distance between covariates. If
 balancing is desired, the model will try to minimize the imbalance in terms
 of specified balancing covariates in the final pair output.  Each treated
 individual is matched to one other individual.
+}
+\details{
+Note that when using exact matching, the \code{n_pairs} are split roughly in
+proportion to the number of treated subjects in each exact matching group.
+This has a possibility of failing  when \code{n_pairs} is large.  If this happens
+to you, we suggest manually performing exact matching, for example with
+\code{split()}, and selecting \code{n_pairs} for each group interactively.
 }
 \examples{
 if (requireNamespace("Rglpk", quietly = TRUE)) {

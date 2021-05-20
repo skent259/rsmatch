@@ -9,6 +9,12 @@
 #' of specified balancing covariates in the final pair output.  Each treated
 #' individual is matched to one other individual.
 #'
+#' Note that when using exact matching, the `n_pairs` are split roughly in
+#' proportion to the number of treated subjects in each exact matching group.
+#' This has a possibility of failing  when `n_pairs` is large.  If this happens
+#' to you, we suggest manually performing exact matching, for example with
+#' `split()`, and selecting `n_pairs` for each group interactively.
+#'
 #' @param n_pairs The number of pairs desired from matching.
 #' @param data A data.frame or similar containing columns matching the `id,
 #'   time, trt_time` arguments, and covariates. This data frame is expected to
@@ -27,15 +33,16 @@
 #' @param balance_covariates A character vector specifying the covariates to use
 #'   for balancing (default `NULL`).  If `NULL`, this will default to all
 #'   columns except those named by the `id`, `time`, and `trt_time` arguments.
+#' @param exact_match A vector of optional covariates to perform exact matching
+#'   on. If `NULL`, no exact matching is done.
 #' @param options A list of additional parameters with the following components:
 #'   * `time_lag` A logical value indicating whether the matches should be made
 #'   on the time period preceding treatment.  This can help avoid confounding if
-#'   treatment happens between two periods.
-#'   * `verbose` A logical value indicating whether to print information to the
-#'   console during a potentially long matching process.
-#'   * `optimizer` The optimizer to use (default `'glpk'`). The option
-#'   `'gurobi'` requires an external license and package, but offers speed
-#'   improvements.
+#'   treatment happens between two periods. * `verbose` A logical value
+#'   indicating whether to print information to the console during a potentially
+#'   long matching process. * `optimizer` The optimizer to use (default
+#'   `'glpk'`). The option `'gurobi'` requires an external license and package,
+#'   but offers speed improvements.
 #'
 #' @return A data frame containing the pair information.  The data frame has
 #'   columns `id`, `pair_id`, and `type`. `id` matches the input parameter and
@@ -69,6 +76,7 @@ brsmatch <- function(n_pairs,
                      covariates = NULL,
                      balance = TRUE,
                      balance_covariates = NULL,
+                     exact_match = NULL,
                      options = list(
                        time_lag = FALSE,
                        verbose = FALSE,
@@ -78,16 +86,16 @@ brsmatch <- function(n_pairs,
   if ("time_lag" %ni% names(options)) options$time_lag <- FALSE
   if ("verbose" %ni% names(options)) options$verbose <- FALSE
   if ("optimizer" %ni% names(options)) options$optimizer <- "glpk"
-  optimizer <- match.arg(options$optimizer, c("glpk", "gurobi"))
-  verbose <- options$verbose
+  options$optimizer <- match.arg(options$optimizer, c("glpk", "gurobi"))
+  # verbose <- options$verbose
 
-  if (optimizer == "gurobi" & !requireNamespace("gurobi", quietly = TRUE)) {
+  if (options$optimizer == "gurobi" & !requireNamespace("gurobi", quietly = TRUE)) {
     rlang::abort(c(
       "Package 'gurobi' must be installed when `optimizer == 'gurobi'`.",
       i = "This package requires Gurobi to be installed on your computer.",
       i = "If you have gurobi installed, see https://www.gurobi.com/documentation/9.1/refman/ins_the_r_package.html for package installation. "
     ))
-  } else if (optimizer == "glpk" & !requireNamespace("Rglpk", quietly = TRUE)) {
+  } else if (options$optimizer == "glpk" & !requireNamespace("Rglpk", quietly = TRUE)) {
     rlang::abort(c(
       "Package 'Rglpk' must be installed when `optimizer == 'glpk'`.",
       i = "Please install the package and retry the funciton."
@@ -104,6 +112,48 @@ brsmatch <- function(n_pairs,
     # need to match on time just before treatment
     data[[trt_time]] <- data[[trt_time]] - 1
   }
+
+  if (!is.null(exact_match)) {
+    data_split <- split(data, data[, exact_match, drop = FALSE])
+
+    n_pairs_split <- lapply(data_split, function(.d) {
+      ind <- which(!is.na(.d[[trt_time]]))
+      length(unique(.d[[id]][ind]))
+    })
+    n_pairs_split <- .weighted_split(n_pairs, unlist(n_pairs_split))
+
+    matched_ids_split <- lapply(1:length(data_split), function(i) {
+      .d <- data_split[[i]]
+      .n <- n_pairs_split[i]
+      .d[, exact_match] <- NULL
+
+      .brsmatch(.n, .d, id, time, trt_time, covariates, balance,
+               balance_covariates, exact_match, options)
+    })
+
+    matched_ids <- do.call(rbind, matched_ids_split)
+
+  } else {
+    matched_ids <- .brsmatch(n_pairs, data, id, time, trt_time, covariates,
+                             balance, balance_covariates, exact_match, options)
+  }
+
+  .output_pairs(matched_ids, id = id, id_list = unique(data[[id]]))
+}
+
+.brsmatch <- function(n_pairs,
+                      data,
+                      id,
+                      time,
+                      trt_time,
+                      covariates,
+                      balance,
+                      balance_covariates,
+                      exact_match,
+                      options)
+{
+  optimizer <- options$optimizer
+  verbose <- options$verbose
 
   if (verbose) {
     rlang::signal("Computing distance from df...")
@@ -135,8 +185,7 @@ brsmatch <- function(n_pairs,
     matches <- res$solution[grepl("f", model$varnames)]
   }
 
-  matched_ids <- edges[matches == 1, c("trt_id", "all_id")]
-  .output_pairs(matched_ids, id = id, id_list = unique(data[[id]]))
+  matched_ids <- edges[matches == 1, c("trt_id", "all_id"), drop = FALSE]
 }
 
 #' Compute distance on valid matches in Risk Set Matching.

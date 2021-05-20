@@ -318,6 +318,38 @@ test_that("`brsmatch()` works when there are no never-treated individuals", {
                     id = "hhidpn", time = "wave", trt_time = "treatment_time")
 })
 
+test_that("`brsmatch() works with exact_match covariates", {
 
+  check_exact_match <- function(pairs, n_pairs) {
+    tmp <- oasis %>%
+      left_join(pairs, by = "subject_id") %>%
+      distinct(subject_id, m_f, pair_id)
 
+    tbl <- table(tmp$m_f, tmp$pair_id)
+    expect_setequal(unique(as.numeric(tbl)), c(0, 2))
+    expect_equal(sum(rowSums(tbl) / 2), n_pairs)
+    expect_equal(unique(colSums(tbl)), 2)
+  }
 
+  pairs <- brsmatch(n_pairs = 5, oasis,
+                    id = "subject_id", time = "visit", trt_time = "time_of_ad",
+                    balance = FALSE,
+                    exact_match = c("m_f"))
+
+  check_exact_match(pairs, 5)
+
+  pairs <- brsmatch(n_pairs = 1, oasis,
+                    id = "subject_id", time = "visit", trt_time = "time_of_ad",
+                    balance = FALSE,
+                    exact_match = c("m_f"))
+
+  check_exact_match(pairs, 1)
+
+  pairs <- brsmatch(n_pairs = 10, oasis,
+                    id = "subject_id", time = "visit", trt_time = "time_of_ad",
+                    balance = FALSE,
+                    exact_match = c("m_f"))
+
+  check_exact_match(pairs, 10)
+
+})

@@ -11,8 +11,6 @@
 #' individual.
 #'
 #' @inheritParams brsmatch
-#' @param exact_match A vector of optional covariates to perform exact matching
-#'   on. If `NULL`, no exact matching is done.
 #' @param options A list of additional parameters with the following components:
 #'   * `time_lag` A logical value indicating whether the matches should be made
 #'   on the time period preceding treatment.  This can help avoid confounding if

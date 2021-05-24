@@ -319,6 +319,7 @@ test_that("`brsmatch()` works when there are no never-treated individuals", {
 })
 
 test_that("`brsmatch() works with exact_match covariates", {
+  check_for_glpk()
 
   check_exact_match <- function(pairs, n_pairs) {
     tmp <- oasis %>%
@@ -353,3 +354,19 @@ test_that("`brsmatch() works with exact_match covariates", {
   check_exact_match(pairs, 10)
 
 })
+
+test_that("`brsmatch()` works for different input values." {
+  check_for_glpk()
+
+  pairs <- brsmatch(n_pairs = 5, oasis,
+                    id = "subject_id", time = "visit", trt_time = "time_of_ad",
+                    balance = FALSE,
+                    options = list(verbose = TRUE))
+
+  pairs <- brsmatch(n_pairs = 5, oasis,
+                    id = "subject_id", time = "visit", trt_time = "time_of_ad",
+                    balance = FALSE,
+                    options = list(time_lag = TRUE))
+
+})
+

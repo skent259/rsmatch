@@ -156,25 +156,25 @@ brsmatch <- function(n_pairs,
   verbose <- options$verbose
 
   if (verbose) {
-    rlang::signal("Computing distance from df...")
+    rlang::inform("Computing distance from df...")
   }
   edges <- .compute_distances(data, id, time, trt_time, covariates, options)
 
   bal <- NULL
   if (balance) {
     if (verbose) {
-      rlang::signal("Building balance columns from df...")
+      rlang::inform("Building balance columns from df...")
     }
     bal <- .balance_columns(data, id, time, trt_time, balance_covariates)
   }
 
   if (verbose) {
-    rlang::signal("Constructing optimization model...")
+    rlang::inform("Constructing optimization model...")
   }
   model <- .rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
 
   if (verbose) {
-    rlang::signal("Preparing to run optimization model")
+    rlang::inform("Preparing to run optimization model")
   }
   if (optimizer == "gurobi") {
     res <- gurobi::gurobi(model, params = list(OutputFlag = 1*verbose))

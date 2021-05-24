@@ -115,6 +115,8 @@ brsmatch <- function(n_pairs,
 
   if (!is.null(exact_match)) {
     data_split <- split(data, data[, exact_match, drop = FALSE])
+    covariates <- setdiff(covariates, exact_match)
+    balance_covariates <- setdiff(balance_covariates, exact_match)
 
     n_pairs_split <- lapply(data_split, function(.d) {
       ind <- which(!is.na(.d[[trt_time]]))

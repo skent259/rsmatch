@@ -36,7 +36,7 @@ at \code{id} and \code{time}.}
 matching (default \code{NULL}). If \code{NULL}, this will default to all columns
 except those named by the \code{id}, \code{time}, and \code{trt_time} arguments.}
 
-\item{balance}{A logical value indicating whether to including balancing
+\item{balance}{A logical value indicating whether to include balancing
 constraints in the matching process.}
 
 \item{balance_covariates}{A character vector specifying the covariates to use
@@ -50,9 +50,11 @@ on. If \code{NULL}, no exact matching is done.}
 \itemize{
 \item \code{time_lag} A logical value indicating whether the matches should be made
 on the time period preceding treatment.  This can help avoid confounding if
-treatment happens between two periods. * \code{verbose} A logical value
+treatment happens between two periods.
+\item \code{verbose} A logical value
 indicating whether to print information to the console during a potentially
-long matching process. * \code{optimizer} The optimizer to use (default
+long matching process.
+\item \code{optimizer} The optimizer to use (default
 \code{'glpk'}). The option \code{'gurobi'} requires an external license and package,
 but offers speed improvements.
 }}

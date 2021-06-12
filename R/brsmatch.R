@@ -28,7 +28,7 @@
 #' @param covariates A character vector specifying the covariates to use for
 #'   matching (default `NULL`). If `NULL`, this will default to all columns
 #'   except those named by the `id`, `time`, and `trt_time` arguments.
-#' @param balance A logical value indicating whether to including balancing
+#' @param balance A logical value indicating whether to include balancing
 #'   constraints in the matching process.
 #' @param balance_covariates A character vector specifying the covariates to use
 #'   for balancing (default `NULL`).  If `NULL`, this will default to all
@@ -38,9 +38,11 @@
 #' @param options A list of additional parameters with the following components:
 #'   * `time_lag` A logical value indicating whether the matches should be made
 #'   on the time period preceding treatment.  This can help avoid confounding if
-#'   treatment happens between two periods. * `verbose` A logical value
+#'   treatment happens between two periods.
+#'   * `verbose` A logical value
 #'   indicating whether to print information to the console during a potentially
-#'   long matching process. * `optimizer` The optimizer to use (default
+#'   long matching process.
+#'   * `optimizer` The optimizer to use (default
 #'   `'glpk'`). The option `'gurobi'` requires an external license and package,
 #'   but offers speed improvements.
 #'
@@ -158,14 +160,14 @@ brsmatch <- function(n_pairs,
   verbose <- options$verbose
 
   if (verbose) {
-    rlang::inform("Computing distance from df...")
+    rlang::inform("Computing distance from data...")
   }
   edges <- .compute_distances(data, id, time, trt_time, covariates, options)
 
   bal <- NULL
   if (balance) {
     if (verbose) {
-      rlang::inform("Building balance columns from df...")
+      rlang::inform("Building balance columns from data...")
     }
     bal <- .balance_columns(data, id, time, trt_time, balance_covariates)
   }

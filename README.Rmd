@@ -1,0 +1,84 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# rsmatch
+<!-- badges: start -->
+[![Travis build status](https://travis-ci.com/skent259/rsmatch.svg?branch=master)](https://travis-ci.com/skent259/rsmatch)
+<!-- badges: end -->
+
+The R package rsmatch implements various forms of **matching on time-varying observational studies** to help in causal inference.  The package utilized the idea of matching through a series of risk sets consisting of all subjects who are still "at risk" of treatment.  Subjects in this set treated at the next time point can be matched to controls who are not treated to avoid bias in estimating treatment effects. 
+
+Currently, we have methods for:
+
+- **Balanced Risk Set Matching** with `brsmatch()`, based on the work of Li et al. (2001) 
+- **Propensity Score Matching with Time-Dependent Covariates** with `coxph_match()`, based on the work of Lu (2005)
+
+## Installation 
+
+You can install the rsmatch package with 
+
+```r
+# install.packages("devtools")
+devtools::install_github("skent259/rsmatch")
+```
+
+## Example usage
+
+Consider the `oasis` data which consists of 51 patients from the [Open Access Series of Imaging Studies](https://www.oasis-brains.org/) that are classified at each time point as having Alzheimer's disease (AD) or not.  We can match subjects who are similar in their gender, education level, socioeconomic status, age, and other MRI measurements, but one of which moved from a cognitively normal state to AD in the next time period and the other who remained cognitively normal.  
+
+```{r example1}
+library(rsmatch)
+data(oasis)
+
+pairs <- brsmatch(
+  n_pairs = 5,
+  data = oasis,
+  id = "subject_id", time = "visit", trt_time = "time_of_ad",
+  balance = TRUE, balance_covariates = c("m_f", "age")
+)
+
+na.omit(pairs)
+```
+
+These 10 subjects form the 5 best pairs according to balanced risk set matching, where we consider pairs close if they have similar covariates and we try to find balance on gender and age.  We can see that the first pair match closely on their covariates:
+
+```{r}
+first_pair <- pairs[which(pairs$pair_id == 1), "subject_id"]
+oasis[which(oasis$subject_id %in% first_pair), ]
+```
+
+We can also find matches using Propensity Score Matching with Time-Dependent Covariates by Lu (2005)
+
+```{r, warning=FALSE, message=FALSE}
+pairs <- coxpsmatch(
+  n_pairs = 5,
+  data = oasis,
+  id = "subject_id", time = "visit", trt_time = "time_of_ad"
+)
+
+first_pair <- pairs[which(pairs$pair_id == 1), "subject_id"]
+oasis[which(oasis$subject_id %in% first_pair), ]
+```
+
+This picks a different first pair, but they are also close in covariates.  
+
+
+## References 
+
+Li, Yunfei Paul, Kathleen J Propert, and Paul R Rosenbaum. 2001. “Balanced Risk Set Matching.” Journal of the American Statistical Association 96 (455): 870–82. 
+
+Lu, Bo. 2005. “Propensity Score Matching with Time-Dependent Covariates.” Biometrics 61 (3): 721–28.
+
+

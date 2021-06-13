@@ -4,3 +4,4 @@
 misc/
 ^\.travis\.yml$
 ^data-raw$
+^README\.Rmd$

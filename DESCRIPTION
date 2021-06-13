@@ -30,7 +30,10 @@ Suggests:
     Rglpk,
     gurobi,
     survival,
-    nbpMatching, 
-    rlang
+    nbpMatching,
+    rlang,
+    knitr,
+    rmarkdown
 Depends: 
     R (>= 2.10)
+VignetteBuilder: knitr

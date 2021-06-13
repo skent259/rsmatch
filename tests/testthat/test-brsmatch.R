@@ -355,7 +355,7 @@ test_that("`brsmatch() works with exact_match covariates", {
 
 })
 
-test_that("`brsmatch()` works for different input values." {
+test_that("`brsmatch()` works for different input values.", {
   check_for_glpk()
 
   pairs <- brsmatch(n_pairs = 5, oasis,

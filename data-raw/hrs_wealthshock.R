@@ -132,8 +132,7 @@ d_analysis <-
 #' to be in 2014 dollars
 
 # CPI data from https://data.bls.gov/pdq/SurveyOutputServlet
-# fname <- "data/bls-cpi/SeriesReport-20191019170556_3a4d32.xlsx"
-fname <- here("data-raw/SeriesReport-20191019170556_3a4d32.xlsx")
+fname <- here("data-raw/bls_cpi.xlsx")
 cpi <- read_excel(fname, skip = 11) %>%
   select(Year, Annual)
 

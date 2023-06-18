@@ -1,0 +1,8 @@
+bibentry(
+  bibtype  = "Manual",
+  title    = "rsmatch: Matching Methods for Time-varying Observational Studies",
+  author   = "Sean Kent and Mitchell Paukner",
+  year     = "2023",
+  note     = "R package version 0.1.0",
+  url      = "https://github.com/skent259/rsmatch"
+)

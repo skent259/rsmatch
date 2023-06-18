@@ -1,6 +1,6 @@
 Package: rsmatch
 Title: Matching Methods for Time-varying Observational Studies
-Version: 0.1.0.9000
+Version: 0.1.0.9001
 Authors@R: 
     c(person("Sean", "Kent",
              email = "skent259@gmail.com",
@@ -19,7 +19,7 @@ BugReports: https://github.com/skent259/rsmatch/issues
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.3
 Imports:
     MASS,
     stats,

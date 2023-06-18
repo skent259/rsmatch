@@ -19,10 +19,10 @@ effects.
 
 Currently, we have methods for:
 
-  - **Balanced Risk Set Matching** with `brsmatch()`, based on the work
-    of Li et al. (2001)
-  - **Propensity Score Matching with Time-Dependent Covariates** with
-    `coxph_match()`, based on the work of Lu (2005)
+- **Balanced Risk Set Matching** with `brsmatch()`, based on the work of
+  Li, Propert, and Rosenbaum (2001)
+- **Propensity Score Matching with Time-Dependent Covariates** with
+  `coxph_match()`, based on the work of Lu (2005)
 
 ## Installation
 
@@ -95,7 +95,7 @@ pairs <- coxpsmatch(
 
 first_pair <- pairs[which(pairs$pair_id == 1), "subject_id"]
 oasis[which(oasis$subject_id %in% first_pair), ]
-#> # A tibble: 4 x 11
+#> # A tibble: 4 × 11
 #>   subject_id visit time_of_ad m_f    educ ses     age mr_delay e_tiv n_wbv   asf
 #>   <chr>      <int>      <dbl> <chr> <int> <fct> <int>    <int> <int> <dbl> <dbl>
 #> 1 OAS2_0009      1         NA M        12 2        68        0  1457 0.806  1.20
@@ -106,6 +106,26 @@ oasis[which(oasis$subject_id %in% first_pair), ]
 
 This picks a different first pair, but they are also close in
 covariates.
+
+## Citation
+
+To cite package ‘rsmatch’ in publications use:
+
+Kent S, Paukner M (2023). *rsmatch: Matching Methods for Time-varying
+Observational Studies*. R package version 0.1.0,
+<https://github.com/skent259/rsmatch>.
+
+A BibTeX entry for LaTeX users is
+
+``` bibtex
+@Manual{,
+  title = {rsmatch: Matching Methods for Time-varying Observational Studies},
+  author = {Sean Kent and Mitchell Paukner},
+  year = {2023},
+  note = {R package version 0.1.0},
+  url = {https://github.com/skent259/rsmatch},
+}
+```
 
 ## References
 

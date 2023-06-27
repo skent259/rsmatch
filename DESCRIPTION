@@ -4,20 +4,20 @@ Version: 0.1.0.9002
 Authors@R: c(
     person("Sean", "Kent", , "skent259@gmail.com", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0001-8697-9069")),
-    person("Mitchell", "Paukner", role = "aut",
+    person("Mitchell", "Paukner", role = c("aut", "cph"),
            comment = c(ORCID = "0000-0003-3839-5311"))
   )
-Description: The 'rsmatch' pacakge contains popular methods for matching
-    in time-varying observational studies. Matching is difficult in this
-    scenario because participants can be treated at different times which
-    may have an influence on the outcomes. The core methods include:
-    Balanced Risk Set Matching from Li, Propert, and Rosenbaum (2011)
-    <doi:10.1198/016214501753208573> and Propensity Score Matching with
-    Time-Dependent Covariates from Lu (2005)
-    <doi:10.1111/j.1541-0420.2005.00356.x>. Some functions use the 'Gurobi'
-    optimization back-end to improve the optimization problem speed; the
-    'gurobi' R package and associated software can be downloaded from
-    <https://www.gurobi.com> after obtaining a license.
+Description: Implements popular methods for matching in time-varying
+    observational studies. Matching is difficult in this scenario because
+    participants can be treated at different times which may have an
+    influence on the outcomes. The core methods include: "Balanced Risk
+    Set Matching" from Li, Propert, and Rosenbaum (2011)
+    <doi:10.1198/016214501753208573> and "Propensity Score Matching with
+    Time-Dependent Covariates" from Lu (2005)
+    <doi:10.1111/j.1541-0420.2005.00356.x>. Some functions use the
+    'Gurobi' optimization back-end to improve the optimization problem
+    speed; the 'gurobi' R package and associated software can be
+    downloaded from <https://www.gurobi.com> after obtaining a license.
 License: MIT + file LICENSE
 URL: https://github.com/skent259/rsmatch
 BugReports: https://github.com/skent259/rsmatch/issues

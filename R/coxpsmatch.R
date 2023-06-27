@@ -2,13 +2,11 @@
 #'
 #' Perform propensity score matching as described in Lu (2005) "Propensity Score
 #' Matching with Time-Dependent Covariates".  Given a longitudinal data frame
-#' with covariate information, along with treatment time, build a MIP problem
-#' that matches treated individuals to those that haven't been treated yet (or
-#' are never treated) based on time-dependent propensity scores from a Cox
-#' proportional hazards model. If balancing is desired, the model will try to
-#' minimize the imbalance in terms of specified balancing covariates in the
-#' final pair output.  Each treated individual is matched to one other
-#' individual.
+#' with covariate information, along with treatment time, match treated
+#' individuals to those that haven't been treated yet (or are never treated)
+#' based on time-dependent propensity scores from a Cox proportional hazards
+#' model. Each treated individual is matched to one other individual, unless the
+#' number of pairs is specified.
 #'
 #' @inheritParams brsmatch
 #' @param options A list of additional parameters with the following components:

@@ -87,12 +87,14 @@ to you, we suggest manually performing exact matching, for example with
 \examples{
 if (requireNamespace("Rglpk", quietly = TRUE)) {
   library(dplyr, quietly = TRUE)
-  pairs <- brsmatch(n_pairs = 13,
-                    data = oasis,
-                    id = "subject_id",
-                    time = "visit",
-                    trt_time = "time_of_ad",
-                    balance = FALSE)
+  pairs <- brsmatch(
+    n_pairs = 13,
+    data = oasis,
+    id = "subject_id",
+    time = "visit",
+    trt_time = "time_of_ad",
+    balance = FALSE
+  )
 
   na.omit(pairs)
 

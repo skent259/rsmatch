@@ -55,23 +55,23 @@ indicates whether the individual in the pair is considered as treatment
 \description{
 Perform propensity score matching as described in Lu (2005) "Propensity Score
 Matching with Time-Dependent Covariates".  Given a longitudinal data frame
-with covariate information, along with treatment time, build a MIP problem
-that matches treated individuals to those that haven't been treated yet (or
-are never treated) based on time-dependent propensity scores from a Cox
-proportional hazards model. If balancing is desired, the model will try to
-minimize the imbalance in terms of specified balancing covariates in the
-final pair output.  Each treated individual is matched to one other
-individual.
+with covariate information, along with treatment time, match treated
+individuals to those that haven't been treated yet (or are never treated)
+based on time-dependent propensity scores from a Cox proportional hazards
+model. Each treated individual is matched to one other individual, unless the
+number of pairs is specified.
 }
 \examples{
 if (requireNamespace("survival", quietly = TRUE) &
-    requireNamespace("nbpMatching", quietly = TRUE)) {
+  requireNamespace("nbpMatching", quietly = TRUE)) {
   library(dplyr, quietly = TRUE)
-  pairs <- coxpsmatch(n_pairs = 13,
-                      data = oasis,
-                      id = "subject_id",
-                      time = "visit",
-                      trt_time = "time_of_ad")
+  pairs <- coxpsmatch(
+    n_pairs = 13,
+    data = oasis,
+    id = "subject_id",
+    time = "visit",
+    trt_time = "time_of_ad"
+  )
 
   na.omit(pairs)
 

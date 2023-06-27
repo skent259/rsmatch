@@ -9,6 +9,12 @@
 #' of specified balancing covariates in the final pair output.  Each treated
 #' individual is matched to one other individual.
 #'
+#' Note that when using exact matching, the `n_pairs` are split roughly in
+#' proportion to the number of treated subjects in each exact matching group.
+#' This has a possibility of failing  when `n_pairs` is large.  If this happens
+#' to you, we suggest manually performing exact matching, for example with
+#' `split()`, and selecting `n_pairs` for each group interactively.
+#'
 #' @param n_pairs The number of pairs desired from matching.
 #' @param data A data.frame or similar containing columns matching the `id,
 #'   time, trt_time` arguments, and covariates. This data frame is expected to
@@ -22,20 +28,23 @@
 #' @param covariates A character vector specifying the covariates to use for
 #'   matching (default `NULL`). If `NULL`, this will default to all columns
 #'   except those named by the `id`, `time`, and `trt_time` arguments.
+#' @param balance A logical value indicating whether to include balancing
+#'   constraints in the matching process.
 #' @param balance_covariates A character vector specifying the covariates to use
 #'   for balancing (default `NULL`).  If `NULL`, this will default to all
 #'   columns except those named by the `id`, `time`, and `trt_time` arguments.
-#' @param optimizer The optimizer to use (default `'glpk'`). The option
-#'   `'gurobi'` requires an external license and package, but offers speed
-#'   improvements.
-#' @param verbose A logical value indicating whether to print information to the
-#'   console during a potentially long matching process.
-#' @param balance A logical value indicating whether to including balancing
-#'   constraints in the matching process.
-#' @param options Some additional arguments for rare scenarios (default
-#'   `'none'`).  If options = 'between period treatment' then matches must be
-#'   made on the time period preceding treatment and some special care must be
-#'   taken.
+#' @param exact_match A vector of optional covariates to perform exact matching
+#'   on. If `NULL`, no exact matching is done.
+#' @param options A list of additional parameters with the following components:
+#'   * `time_lag` A logical value indicating whether the matches should be made
+#'   on the time period preceding treatment.  This can help avoid confounding if
+#'   treatment happens between two periods.
+#'   * `verbose` A logical value
+#'   indicating whether to print information to the console during a potentially
+#'   long matching process.
+#'   * `optimizer` The optimizer to use (default
+#'   `'glpk'`). The option `'gurobi'` requires an external license and package,
+#'   but offers speed improvements.
 #'
 #' @return A data frame containing the pair information.  The data frame has
 #'   columns `id`, `pair_id`, and `type`. `id` matches the input parameter and
@@ -45,41 +54,51 @@
 #'   ("trt") or control ("all") in that pair.
 #'
 #' @examples
-#' df <- data.frame(
-#'   hhidpn = rep(1:3, each = 3),
-#'   wave = rep(1:3, 3),
-#'   treatment_time = rep(c(2,3,NA), each = 3),
-#'   X1 = c(2,2,2,3,3,3,9,9,9),
-#'   X2 = rep(c("a","a","b"), each = 3),
-#'   X3 = c(9,4,5,6,7,2,3,4,8),
-#'   X4 = c(8,9,4,5,6,7,2,3,4)
-#' )
-#'
 #' if (requireNamespace("Rglpk", quietly = TRUE)) {
-#'   brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave",
-#'            trt_time = "treatment_time", optimizer = "glpk")
+#'   library(dplyr, quietly = TRUE)
+#'   pairs <- brsmatch(
+#'     n_pairs = 13,
+#'     data = oasis,
+#'     id = "subject_id",
+#'     time = "visit",
+#'     trt_time = "time_of_ad",
+#'     balance = FALSE
+#'   )
+#'
+#'   na.omit(pairs)
+#'
+#'   # evaluate the first match
+#'   first_match <- pairs$subject_id[which(pairs$pair_id == 1)]
+#'   oasis %>% dplyr::filter(subject_id %in% first_match)
 #' }
 #'
 #' @export
 #' @author Sean Kent
-brsmatch <- function(n_pairs,
-                     data,
-                     id = "id", time = "time", trt_time = "trt_time",
-                     covariates = NULL, balance_covariates = NULL,
-                     optimizer = c("glpk", "gurobi"), verbose = FALSE,
-                     balance = TRUE,
-                     options = c("none", "between period treatment"))
-{
+brsmatch <- function(
+    n_pairs,
+    data,
+    id = "id", time = "time", trt_time = "trt_time",
+    covariates = NULL,
+    balance = TRUE,
+    balance_covariates = NULL,
+    exact_match = NULL,
+    options = list(
+      time_lag = FALSE,
+      verbose = FALSE,
+      optimizer = c("glpk", "gurobi")
+    )) {
+  if ("time_lag" %ni% names(options)) options$time_lag <- FALSE
+  if ("verbose" %ni% names(options)) options$verbose <- FALSE
+  if ("optimizer" %ni% names(options)) options$optimizer <- "glpk"
+  options$optimizer <- match.arg(options$optimizer, c("glpk", "gurobi"))
 
-  options <- match.arg(options, c("none", "between period treatment"))
-  optimizer <- match.arg(optimizer, c("glpk", "gurobi"))
-  if (optimizer == "gurobi" & !requireNamespace("gurobi", quietly = TRUE)) {
+  if (options$optimizer == "gurobi" && !requireNamespace("gurobi", quietly = TRUE)) {
     rlang::abort(c(
       "Package 'gurobi' must be installed when `optimizer == 'gurobi'`.",
       i = "This package requires Gurobi to be installed on your computer.",
       i = "If you have gurobi installed, see https://www.gurobi.com/documentation/9.1/refman/ins_the_r_package.html for package installation. "
     ))
-  } else if (optimizer == "glpk" & !requireNamespace("Rglpk", quietly = TRUE)) {
+  } else if (options$optimizer == "glpk" && !requireNamespace("Rglpk", quietly = TRUE)) {
     rlang::abort(c(
       "Package 'Rglpk' must be installed when `optimizer == 'glpk'`.",
       i = "Please install the package and retry the funciton."
@@ -92,43 +111,99 @@ brsmatch <- function(n_pairs,
     ))
     data[[trt_time]] <- as.numeric(data[[trt_time]])
   }
-  if (options == "between period treatment") {
+  if (options$time_lag) {
     # need to match on time just before treatment
     data[[trt_time]] <- data[[trt_time]] - 1
   }
 
+  if (!is.null(exact_match)) {
+    data_split <- split(data, data[, exact_match, drop = FALSE])
+    covariates <- setdiff(covariates, exact_match)
+    balance_covariates <- setdiff(balance_covariates, exact_match)
+
+    n_pairs_split <- lapply(data_split, function(.d) {
+      ind <- which(!is.na(.d[[trt_time]]))
+      length(unique(.d[[id]][ind]))
+    })
+    n_pairs_split <- .weighted_split(n_pairs, unlist(n_pairs_split))
+
+    matched_ids_split <- lapply(seq_along(data_split), function(i) {
+      .d <- data_split[[i]]
+      .n <- n_pairs_split[i]
+      .d[, exact_match] <- NULL
+
+      .brsmatch(
+        .n, .d, id, time, trt_time, covariates, balance,
+        balance_covariates, exact_match, options
+      )
+    })
+
+    matched_ids <- do.call(rbind, matched_ids_split)
+  } else {
+    matched_ids <- .brsmatch(
+      n_pairs, data, id, time, trt_time, covariates,
+      balance, balance_covariates, exact_match, options
+    )
+  }
+
+  .output_pairs(matched_ids, id = id, id_list = unique(data[[id]]))
+}
+
+.brsmatch <- function(
+    n_pairs,
+    data,
+    id,
+    time,
+    trt_time,
+    covariates,
+    balance,
+    balance_covariates,
+    exact_match,
+    options) {
+  optimizer <- options$optimizer
+  verbose <- options$verbose
+
   if (verbose) {
-    rlang::signal("Computing distance from df...")
+    rlang::inform("Computing distance from data...")
   }
   edges <- .compute_distances(data, id, time, trt_time, covariates, options)
 
   bal <- NULL
   if (balance) {
     if (verbose) {
-      rlang::signal("Building balance columns from df...")
+      rlang::inform("Building balance columns from data...")
     }
     bal <- .balance_columns(data, id, time, trt_time, balance_covariates)
   }
 
   if (verbose) {
-    rlang::signal("Constructing optimization model...")
+    rlang::inform("Constructing optimization model...")
   }
   model <- .rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
 
   if (verbose) {
-    rlang::signal("Preparing to run optimization model")
+    rlang::inform("Preparing to run optimization model")
   }
   if (optimizer == "gurobi") {
-    res <- gurobi::gurobi(model, params = list(OutputFlag = 1*verbose))
+    res <- gurobi::gurobi(model, params = list(OutputFlag = 1 * verbose))
     matches <- res$x[grepl("f", model$varnames)]
   } else if (optimizer == "glpk") {
-    res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
-                                             control = list(verbose = verbose, presolve = TRUE)))
+    res <- Rglpk::Rglpk_solve_LP(
+      model$obj,
+      model$mat,
+      model$dir,
+      model$rhs,
+      types = model$types,
+      max = model$max,
+      control = list(verbose = verbose, presolve = TRUE)
+    )
+    # res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
+    #                                          control = list(verbose = verbose, presolve = TRUE)))
     matches <- res$solution[grepl("f", model$varnames)]
   }
 
-  matched_ids <- edges[matches == 1, c("trt_id", "all_id")]
-  .output_pairs(matched_ids, id = id, id_list = unique(data[[id]]))
+  matched_ids <- edges[matches == 1, c("trt_id", "all_id"), drop = FALSE]
+  return(matched_ids)
 }
 
 #' Compute distance on valid matches in Risk Set Matching.
@@ -153,20 +228,26 @@ brsmatch <- function(n_pairs,
 #' df <- data.frame(
 #'   hhidpn = rep(1:3, each = 3),
 #'   wave = rep(1:3, 3),
-#'   treatment_time = rep(c(2,3,NA), each = 3),
-#'   X1 = c(2,2,2,3,3,3,9,9,9),
-#'   X2 = rep(c("a","a","b"), each = 3),
-#'   X3 = c(9,4,5,6,7,2,3,4,8),
-#'   X4 = c(8,9,4,5,6,7,2,3,4)
+#'   treatment_time = rep(c(2, 3, NA), each = 3),
+#'   X1 = c(2, 2, 2, 3, 3, 3, 9, 9, 9),
+#'   X2 = rep(c("a", "a", "b"), each = 3),
+#'   X3 = c(9, 4, 5, 6, 7, 2, 3, 4, 8),
+#'   X4 = c(8, 9, 4, 5, 6, 7, 2, 3, 4)
 #' )
 #'
 #' .compute_distances(df, "hhidpn", "wave", "treatment_time")
 #'
 #' @noRd
-.compute_distances <- function(data, id = "id", time = "time",
-                               trt_time = "trt_time", covariates = NULL,
-                               options = "none")
-{
+.compute_distances <- function(
+    data, id = "id",
+    time = "time",
+    trt_time = "trt_time",
+    covariates = NULL,
+    options = list(
+      time_lag = FALSE,
+      verbose = FALSE,
+      optimizer = c("glpk", "gurobi")
+    )) {
   if (is.null(covariates)) {
     covariates <- setdiff(colnames(data), c(id, time, trt_time))
   }
@@ -183,7 +264,7 @@ brsmatch <- function(n_pairs,
   treated_ids <- ids[trt_times > 0]
 
   # Iterate over treated ids, calculate Mahalanobis dist, and put into a data.frame
-  out <- lapply(1:length(treated_ids), FUN = function(j) {
+  out <- lapply(seq_along(treated_ids), FUN = function(j) {
     i <- treated_ids[[j]]
     trt_time_i <- trt_times[[which(ids == i)]]
     df_at_trt <- data[data[[time]] == trt_time_i, ]
@@ -191,15 +272,16 @@ brsmatch <- function(n_pairs,
     if (i %in% df_at_trt[[id]]) {
       covariates_at_trt <- stats::model.matrix(~ 0 + ., data = df_at_trt[, covariates])
       dists <- stats::mahalanobis(covariates_at_trt,
-                                  covariates_at_trt[which(df_at_trt[[id]] == i),],
-                                  cov = cov_mat_inv,
-                                  inverted = TRUE)
+        covariates_at_trt[which(df_at_trt[[id]] == i), ],
+        cov = cov_mat_inv,
+        inverted = TRUE
+      )
       valid_match <- df_at_trt[[id]] != i & # can't match control with itself
         (df_at_trt[[trt_time]] > trt_time_i | df_at_trt[[trt_time]] == 0) # control receives treatment later, or not at all
-      if (options == "between period treatment") {
+      if (options$time_lag) {
         # potential matches must also exist at trt_time (unless trt_time is the last period)
         exist_after_trt <- df_at_trt[[id]] %in% data[data[[time]] == trt_time_i + 1, ][[id]]
-        valid_match <- valid_match & (exist_after_trt | trt_time_i == max(data[[time]]) )
+        valid_match <- valid_match & (exist_after_trt | trt_time_i == max(data[[time]]))
       }
 
       out_j <- data.frame(
@@ -238,23 +320,27 @@ brsmatch <- function(n_pairs,
 #'
 #' @examples
 #' df <- data.frame(
-#'    hhidpn = rep(1:3, each = 3),
-#'    wave = rep(1:3, 3),
-#'   treatment_time = rep(c(2,3,NA), each = 3),
-#'   X1 = c(2,2,2,3,3,3,9,9,9),
-#'   X2 = rep(c("a","a","b"), each = 3),
-#'   X3 = c(9,4,5,6,7,2,3,4,8),
-#'   X4 = c(8,9,4,5,6,7,2,3,4)
+#'   hhidpn = rep(1:3, each = 3),
+#'   wave = rep(1:3, 3),
+#'   treatment_time = rep(c(2, 3, NA), each = 3),
+#'   X1 = c(2, 2, 2, 3, 3, 3, 9, 9, 9),
+#'   X2 = rep(c("a", "a", "b"), each = 3),
+#'   X3 = c(9, 4, 5, 6, 7, 2, 3, 4, 8),
+#'   X4 = c(8, 9, 4, 5, 6, 7, 2, 3, 4)
 #' )
 #'
 #' balance_covariates <- c("X1", "X2", "X3", "X4")
 #' bal <- .balance_columns(df, "hhidpn", "wave", "treatment_time",
-#'                        balance_covariates = balance_covariates)
+#'   balance_covariates = balance_covariates
+#' )
 #'
 #' @noRd
-.balance_columns <- function(data, id = "id", time = "time",
-                             trt_time = "trt_time", balance_covariates = NULL)
-{
+.balance_columns <- function(
+    data,
+    id = "id",
+    time = "time",
+    trt_time = "trt_time",
+    balance_covariates = NULL) {
   if (is.null(balance_covariates)) {
     balance_covariates <- setdiff(colnames(data), c(id, time, trt_time))
   }
@@ -280,14 +366,15 @@ brsmatch <- function(n_pairs,
   if (length(numeric_cov) > 0) {
     trt_at_trt_time_df <- data[data[[time]] == data[[trt_time]], ]
     quantiles <- apply(trt_at_trt_time_df[, numeric_cov, drop = FALSE],
-                       MARGIN = 2,
-                       stats::quantile,
-                       probs = c(1/3, 2/3))
+      MARGIN = 2,
+      stats::quantile,
+      probs = c(1 / 3, 2 / 3)
+    )
     # balance on numeric columns
     out <- list()
     for (col in colnames(quantiles)) {
-      for (row in 1:nrow(quantiles)) {
-        out[[paste0(col, ".q",row)]] <- 1*(data[[col]] > quantiles[row, col])
+      for (row in seq_len(nrow(quantiles))) {
+        out[[paste0(col, ".q", row)]] <- 1 * (data[[col]] > quantiles[row, col])
       }
     }
     bal_numeric <- do.call(cbind, out)
@@ -296,7 +383,7 @@ brsmatch <- function(n_pairs,
   }
   # balance on character and factor columns
   if (length(factor_cov) > 0) {
-    bal_factor <- stats::model.matrix(~ 0 + ., data = data[,factor_cov, drop = FALSE])
+    bal_factor <- stats::model.matrix(~ 0 + ., data = data[, factor_cov, drop = FALSE])
   } else {
     bal_factor <- empty_df
   }
@@ -337,11 +424,11 @@ brsmatch <- function(n_pairs,
 #' df <- data.frame(
 #'   hhidpn = rep(1:3, each = 3),
 #'   wave = rep(1:3, 3),
-#'   treatment_time = rep(c(2,3,NA), each = 3),
-#'   X1 = c(2,2,2,3,3,3,9,9,9),
-#'   X2 = rep(c("a","a","b"), each = 3),
-#'   X3 = c(9,4,5,6,7,2,3,4,8),
-#'   X4 = c(8,9,4,5,6,7,2,3,4)
+#'   treatment_time = rep(c(2, 3, NA), each = 3),
+#'   X1 = c(2, 2, 2, 3, 3, 3, 9, 9, 9),
+#'   X2 = rep(c("a", "a", "b"), each = 3),
+#'   X3 = c(9, 4, 5, 6, 7, 2, 3, 4, 8),
+#'   X4 = c(8, 9, 4, 5, 6, 7, 2, 3, 4)
 #' )
 #' edges <- compute_distances(df, "hhidpn", "wave", "treatment_time")
 #' bal <- balance_columns(df, "hhidpn", "wave", "treatment_time")
@@ -350,36 +437,38 @@ brsmatch <- function(n_pairs,
 #' model <- .rsm_optimization_model(1, edges, bal, optimizer = "gurobi", balance = TRUE)
 #'
 #' @noRd
-.rsm_optimization_model <- function(n_pairs,
-                                    edges,
-                                    bal_all = NULL,
-                                    optimizer = "gurobi",
-                                    verbose = FALSE,
-                                    balance = TRUE) {
-
+.rsm_optimization_model <- function(
+    n_pairs,
+    edges,
+    bal_all = NULL,
+    optimizer = "gurobi",
+    verbose = FALSE,
+    balance = TRUE) {
   if (is.null(bal_all)) balance <- FALSE
   if (balance) {
     # TODO: check that no columns have the .trt or .all name in them already. This is unlikely
     bal_all <- as.data.frame(bal_all)
     # bal_all$time <- bal_all$time + 1 # want to match when time == trt_time - 1
-    edges$.rowid <- 1:nrow(edges)
+    edges$.rowid <- seq_len(nrow(edges))
     edges <- merge(edges, bal_all, by.x = c("trt_id", "trt_time"), by.y = c("id", "time"))
-    edges <- merge(edges, bal_all, by.x = c("all_id", "trt_time"), by.y = c("id", "time"),
-                   suffixes = c(".trt", ".all"))
+    edges <- merge(edges, bal_all,
+      by.x = c("all_id", "trt_time"), by.y = c("id", "time"),
+      suffixes = c(".trt", ".all")
+    )
     edges <- edges[order(edges$.rowid), ]
     edges$.rowid <- NULL
   }
 
   S <- n_pairs # number of pairs
-  K <- ifelse(balance, ncol(bal_all)-2, 0) # number of balancing constraints TODO: maybe rename this as n_gp, n_gm
+  K <- ifelse(balance, ncol(bal_all) - 2, 0) # number of balancing constraints TODO: maybe rename this as n_gp, n_gm
   E <- nrow(edges) # number of edges  TODO: maybe rename this as n_f
-  n_vars <- E + 2*K
+  n_vars <- E + 2 * K
 
   delta <- edges$dist
   lambda_k <- sum(delta) + 100
 
   ## A.2 - There are S matched sets
-  A.2 <- c(rep(1, E), rep(0, 2*K))
+  A.2 <- c(rep(1, E), rep(0, 2 * K))
   A.2 <- rbind(A.2, -A.2)
 
   ## A.3 - each unit has at most one edge
@@ -399,18 +488,19 @@ brsmatch <- function(n_pairs,
     # TODO: use microbenchmark to try this a few different ways.
   })
   i_ind <- mapply(
-    function(x,y) {
+    function(x, y) {
       rep.int(y, times = length(x))
     },
     j_ind,
-    1:length(j_ind),
+    seq_along(j_ind),
     SIMPLIFY = FALSE
   )
   j_ind <- do.call(c, j_ind)
   i_ind <- do.call(c, i_ind)
 
   A.3 <- Matrix::sparseMatrix(i_ind, j_ind,
-                              dims = c(length(all_ids), n_vars))
+    dims = c(length(all_ids), n_vars)
+  )
 
   # # I think this is faster....
   # TODO: check if this is faster
@@ -454,19 +544,19 @@ brsmatch <- function(n_pairs,
   if (balance) {
     ## Objective
     model$modelsense <- "min"
-    model$obj <- c(delta, rep(lambda_k, 2*K))
+    model$obj <- c(delta, rep(lambda_k, 2 * K))
     ## Constraints
-    model$varnames <- c(paste0("f",1:E), paste0("gp",1:K), paste0("gm",1:K))
+    model$varnames <- c(paste0("f", 1:E), paste0("gp", 1:K), paste0("gm", 1:K))
     model$A <- rbind(A.2, A.3, A.45)
     model$sense <- rep("<=", nrow(model$A))
-    model$rhs <- c(S, -S, rep(1, length(all_ids)), rep(0, 2*K))
-    model$vtype <- c(rep("B", E), rep("C", 2*K))
+    model$rhs <- c(S, -S, rep(1, length(all_ids)), rep(0, 2 * K))
+    model$vtype <- c(rep("B", E), rep("C", 2 * K))
   } else {
     ## Objective
     model$modelsense <- "min"
     model$obj <- c(delta)
     ## Constraints
-    model$varnames <- c(paste0("f",1:E))
+    model$varnames <- c(paste0("f", 1:E))
     model$A <- rbind(A.2, A.3)
     model$sense <- rep("<=", nrow(model$A))
     model$rhs <- c(S, -S, rep(1, length(all_ids)))
@@ -475,7 +565,7 @@ brsmatch <- function(n_pairs,
 
   if (optimizer == "gurobi") {
     return(model)
-  } else  if (optimizer == "glpk") {
+  } else if (optimizer == "glpk") {
     names(model) <- c("max", "obj", "varnames", "mat", "dir", "rhs", "types")
     model$max <- ifelse(model$max == "min", FALSE, NA)
     return(model)
@@ -487,12 +577,3 @@ brsmatch <- function(n_pairs,
   }
   return(model)
 }
-
-
-
-
-
-
-
-
-

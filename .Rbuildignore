@@ -3,3 +3,6 @@
 ^LICENSE\.md$
 misc/
 ^\.travis\.yml$
+^data-raw$
+^README\.Rmd$
+^data/hrs_wealthshock\.rda$

@@ -1,0 +1,140 @@
+---
+title: "Risk Set Matching with rsmatch"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Risk Set Matching with rsmatch}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Time-varying matching
+
+Any time we are handling observational data (as opposed to that from a randomized study) and trying to measure the effect of some treatment, bias can potentially confound our estimates---undermining the analysis. To reduce this bias, *matching* attempts to find groups that are similar across measured variables, despite receiving alternate sides of treatment. Matching requires special care when treatment(s) (and related matching variables) happen at multiple multiple times, as in some longitudinal data.
+
+The R package **rsmatch** implements various forms of matching on time-varying observational studies to help in causal inference. 
+
+```{r setup}
+library(rsmatch)
+```
+
+This short vignette aims to provide enough information on time-varying matching and the rsmatch package for someone to start data analysis. The package implements two different approaches, and we recommend a thorough read-through of the corresponding paper to understand the methodology, potential pitfalls, and other crucial considerations. 
+
+- **Balanced Risk Set Matching** with `brsmatch()`, based on the work of Li, Propert, and Rosenbaum (2001) 
+- **Propensity Score Matching with Time-Dependent Covariates** with `coxph_match()`, based on the work of Lu (2005)
+
+
+## OASIS data
+
+We start by showing a data set that can illustrate the structure of a time-varying observational data set. 
+
+Consider the `oasis` data with 51 patients from the [Open Access Series of Imaging Studies](https://www.oasis-brains.org/) that are classified at each time point as having Alzheimer's disease (AD) or not.  
+
+```{r data}
+data(oasis)
+head(oasis, n = 10)
+```
+
+The data set has been modified to a "long" time-varying format with the following variables:
+
+- `subject_id` - A unique patient identifier
+- `visit` - An identifier of the time point, from 1 up to 4
+- `time_of_ad` - The visit in which a patient was identified to have AD, or NA if this patient has not yet been identified with AD
+- `m_f`, `educ`,`ses`, `age` - Baseline patient characteristics for gender, education level, socioeconomic status, age
+- `mr_delay`, `e_tiv`, `n_wbv`, `asf` - Time-varying patient characteristics for MR delay time, estimated total intracranial volume, and Atlas scaling factor. 
+
+Importantly, visits have a similar time difference between them. This sets up a panel data structure. The package does not help with data sets where subject visits happen irregularly or continuously.
+
+This data set illustrates a few of the standard causal inference elements for time-varying matching, including
+
+- **Treatment**: The "treatment" used here is being diagnosed with AD, with the associated cognitive changes. NOTE: this is far from the standard concept of treatment in a randomized study, but we could be interested in the effect of a diagnosis of AD on other variables like mortality, health care cost, or time spent with loved ones.
+- **Control groups across time**: For visit $t$, the control group includes all subjects without AD yet. For example, the control group at visit 1 includes all patients. The control group at visit 3 would include OAS2_0002, OAS2_0009, and OAS2_0010 above, but would NOT include OAS2_0007 (who has AD at that visit). 
+- **Treatment groups across time**: For visit $t$, the treatment group includes all subjects diagnosed with AD at that visit. Subject OAS2_0007 is in the treatment group at visit 3, but NOT in the treatment groups for visits 1, 2, or 4. 
+- **Matching (confounding) variables**: Variables that relate to both the treatment (AD) and the chosen outcome. This includes both baseline characteristics and time-varying characters. 
+
+Unfortunately, the data is missing a key aspect for causal analysis, the **outcome** on which to measure our treatment effect. Open-source longitudinal data sets are somewhat scarce, and this was the most illustrative example we could find while including in the package. However, this data fully demonstrates the matching process. Applying a set of matches to determine the treatment effect is, thankfully, a typically straightforward process. 
+
+Our goal is to match subjects similar in their gender, education level, socioeconomic status, age, and other MRI measurements, but one of which moved from a cognitively normal state to AD in the next period and the other who remained cognitively normal. On these similar groups, we can hopefully isolate the effect of an AD diagnosis on an outcome of interest. 
+
+## Balanced Risk Set Matching
+
+Based on the work of Li et al. (2001), the `brsmatch()` function performs "Balanced Risk Set Matching". Given our data structure, it finds matches based on minimizing the Mahalanobis distance between covariates. If balancing is desired, the model will try to minimize the imbalance in terms of specified balancing covariates in the final pair output. Each treated individual is matched to one other individual. Full details are provided in the available reference. 
+
+For example, we can find 5 matched pairs based on all covariates with balance across gender and age: 
+
+```{r example1}
+pairs <- brsmatch(
+  n_pairs = 5,
+  data = oasis,
+  id = "subject_id", 
+  time = "visit", 
+  trt_time = "time_of_ad",
+  covariates = c("m_f", "educ", "ses", "age", 
+                 "mr_delay", "e_tiv", "n_wbv", "asf"),
+  balance = TRUE, 
+  balance_covariates = c("m_f", "age")
+)
+
+na.omit(pairs)
+```
+
+The output includes a long-format data frame with `subject_id`, `pair_id`, and `type` to indicate whether the subject was considered in the treatment (`trt`) group, or the control (`all`) group for the indicated time point. The `type` variable is helpful because subjects who got AD could match in either the treatment or control group depending on which visit they were matched in. `brsmatch()` considers all of the possibilities in finding an optimal match. The output will include all subjects, with an `NA` value for `pair_id` and `type` for unmatched subjects. 
+
+Taking, for example, the first pair, OAS2_0014 to OAS2_0124, we know that the matching happened at visit 2, and in that visit, the two subjects have very similar covariates. 
+
+```{r}
+first_pair <- pairs[which(pairs$pair_id == 1), "subject_id"]
+oasis[which(oasis$subject_id %in% first_pair), ]
+```
+
+Full details of the `brsmatch()` function's arguments can be found with `?brsmatch`. One option not used in this example allows for exact matching constraints. These can be very useful to improve the optimization speed for large data sets. 
+
+
+## Propensity Score Matching with Time-Dependent Covariates
+
+Based on the work of Lu (2005) "Propensity Score Matching with Time-Dependent Covariates", the `coxpsmatch()` function matches subjects based on time-dependent propensity scores from a Cox proportional hazards model. If balancing is desired, the model will try to minimize the imbalance in terms of specified balancing covariates in the final pair output. Each treated individual is matched to one other individual.
+
+The `coxpsmatch()` interface is similar to `brsmatch()` in both inputs and outputs as the following example shows. However, `coxpsmatch()` can pair all individuals if desired and does not allow (or need) the option of separate balance variables. 
+
+```{r, warning=FALSE, message=FALSE}
+pairs <- coxpsmatch(
+  n_pairs = 5,
+  data = oasis,
+  id = "subject_id", 
+  time = "visit", 
+  trt_time = "time_of_ad",
+  covariates = c("m_f", "educ", "ses", "age", 
+                 "mr_delay", "e_tiv", "n_wbv", "asf")
+)
+
+na.omit(pairs)
+```
+
+In this example, OAS2_0014 still matches to OAS2_0124, but other matches differ.
+
+```{r, warning=FALSE, message=FALSE}
+second_pair <- pairs[which(pairs$pair_id == 2), "subject_id"]
+oasis[which(oasis$subject_id %in% second_pair), ]
+```
+
+## Going further
+
+This quick vignette provides a primer to get you started with time-varying matching methods. Some necessary concepts not covered include:
+
+- How to select which variables to include for matching, balancing, and exact matches
+- How to visualize and quantify whether the matches are good
+- How to use the matches to compare the outcome (e.g. binary, continuous, or survival endpoints)
+- Sensitivity analysis to measure the size of an unmeasured confounder that could change your treatment-effect conclusions
+- Whether treatment occurs at the specified visit, or in between two visits (see the `time_lag` option in both functions)
+
+## References
+
+Li, Yunfei Paul, Kathleen J Propert, and Paul R Rosenbaum. 2001. "Balanced Risk Set Matching." Journal of the American Statistical Association 96 (455): 870--82.
+
+Lu, Bo. 2005. "Propensity Score Matching with Time-Dependent Covariates." Biometrics 61 (3): 721--28.

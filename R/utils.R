@@ -1,3 +1,7 @@
+#' Not in, as opposed to %in%
+#' @noRd
+`%ni%` <- Negate(`%in%`)
+
 #' Output pairs to new format
 #'
 #' Takes a data frame with each row as a pair and returns output in long, tidy
@@ -37,4 +41,51 @@
   pairs$type[all_ind] <- "all"
   names(pairs)[1] <- id
   return(pairs)
+}
+
+
+
+#' Split an integer according to weights
+#'
+#' Splits `n` according to `weights` in the most even way possible.  By this, we
+#' mean that numbers closest to the 'next digit' when considering `n * weights`
+#' will be rounded up or down first.  The procedure is kind of complicated, but
+#' I'm fairly sure that it works.
+#'
+#' @param n An integer.
+#' @param weights A set of weights which determine how many groups to split `n`
+#'   into, and their relative strengths
+#'
+#' @return A vector of size `length(weights)` which should sum to `n`.
+#'
+#' @noRd
+.weighted_split <- function(n, weights) {
+  weights <- weights / sum(weights)
+
+  x <- n*weights
+  out <- round(x)
+  diff <- x - round(x)
+  n_left <- n - sum(out)
+
+  if (n_left == 0) {
+    return(out)
+  } else if (n_left < 0) {
+    # overestimated, need to subtract
+    diff[diff < 0] <- diff[diff < 0] + 1
+    for (i in 1:-n_left) {
+      add_to <- which.min(diff)
+      out[add_to] <- out[add_to] - 1
+      diff[add_to] <- diff[add_to] + 1 # ensure it won't be the min again
+    }
+  } else {
+    # underestimated, need to add
+    diff[diff > 0] <- diff[diff > 0] - 1
+    for (i in 1:n_left) {
+      add_to <- which.max(diff)
+      out[add_to] <- out[add_to] + 1
+      diff[add_to] <- diff[add_to] - 1 # ensure it won't be the min again
+    }
+  }
+  stopifnot(sum(out) == n)
+  return(out)
 }

@@ -11,11 +11,10 @@ brsmatch(
   time = "time",
   trt_time = "trt_time",
   covariates = NULL,
-  balance_covariates = NULL,
-  optimizer = c("glpk", "gurobi"),
-  verbose = FALSE,
   balance = TRUE,
-  options = c("none", "between period treatment")
+  balance_covariates = NULL,
+  exact_match = NULL,
+  options = list(time_lag = FALSE, verbose = FALSE, optimizer = c("glpk", "gurobi"))
 )
 }
 \arguments{
@@ -37,24 +36,28 @@ at \code{id} and \code{time}.}
 matching (default \code{NULL}). If \code{NULL}, this will default to all columns
 except those named by the \code{id}, \code{time}, and \code{trt_time} arguments.}
 
+\item{balance}{A logical value indicating whether to include balancing
+constraints in the matching process.}
+
 \item{balance_covariates}{A character vector specifying the covariates to use
 for balancing (default \code{NULL}).  If \code{NULL}, this will default to all
 columns except those named by the \code{id}, \code{time}, and \code{trt_time} arguments.}
 
-\item{optimizer}{The optimizer to use (default \code{'glpk'}). The option
-\code{'gurobi'} requires an external license and package, but offers speed
-improvements.}
+\item{exact_match}{A vector of optional covariates to perform exact matching
+on. If \code{NULL}, no exact matching is done.}
 
-\item{verbose}{A logical value indicating whether to print information to the
-console during a potentially long matching process.}
-
-\item{balance}{A logical value indicating whether to including balancing
-constraints in the matching process.}
-
-\item{options}{Some additional arguments for rare scenarios (default
-\code{'none'}).  If options = 'between period treatment' then matches must be
-made on the time period preceding treatment and some special care must be
-taken.}
+\item{options}{A list of additional parameters with the following components:
+\itemize{
+\item \code{time_lag} A logical value indicating whether the matches should be made
+on the time period preceding treatment.  This can help avoid confounding if
+treatment happens between two periods.
+\item \code{verbose} A logical value
+indicating whether to print information to the console during a potentially
+long matching process.
+\item \code{optimizer} The optimizer to use (default
+\code{'glpk'}). The option \code{'gurobi'} requires an external license and package,
+but offers speed improvements.
+}}
 }
 \value{
 A data frame containing the pair information.  The data frame has
@@ -74,20 +77,30 @@ balancing is desired, the model will try to minimize the imbalance in terms
 of specified balancing covariates in the final pair output.  Each treated
 individual is matched to one other individual.
 }
+\details{
+Note that when using exact matching, the \code{n_pairs} are split roughly in
+proportion to the number of treated subjects in each exact matching group.
+This has a possibility of failing  when \code{n_pairs} is large.  If this happens
+to you, we suggest manually performing exact matching, for example with
+\code{split()}, and selecting \code{n_pairs} for each group interactively.
+}
 \examples{
-df <- data.frame(
-  hhidpn = rep(1:3, each = 3),
-  wave = rep(1:3, 3),
-  treatment_time = rep(c(2,3,NA), each = 3),
-  X1 = c(2,2,2,3,3,3,9,9,9),
-  X2 = rep(c("a","a","b"), each = 3),
-  X3 = c(9,4,5,6,7,2,3,4,8),
-  X4 = c(8,9,4,5,6,7,2,3,4)
-)
-
 if (requireNamespace("Rglpk", quietly = TRUE)) {
-  brsmatch(n_pairs = 1, data = df, id = "hhidpn", time = "wave",
-           trt_time = "treatment_time", optimizer = "glpk")
+  library(dplyr, quietly = TRUE)
+  pairs <- brsmatch(
+    n_pairs = 13,
+    data = oasis,
+    id = "subject_id",
+    time = "visit",
+    trt_time = "time_of_ad",
+    balance = FALSE
+  )
+
+  na.omit(pairs)
+
+  # evaluate the first match
+  first_match <- pairs$subject_id[which(pairs$pair_id == 1)]
+  oasis \%>\% dplyr::filter(subject_id \%in\% first_match)
 }
 
 }

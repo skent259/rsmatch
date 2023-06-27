@@ -25,11 +25,17 @@ Currently, we have methods for:
 - **Balanced Risk Set Matching** with `brsmatch()`, based on the work of Li, Propert, and Rosenbaum (2001) 
 - **Propensity Score Matching with Time-Dependent Covariates** with `coxph_match()`, based on the work of Lu (2005)
 
-## Installation 
+## Installation
 
-You can install the rsmatch package with 
+You can install the released version of rsmatch from [CRAN](https://CRAN.R-project.org) with:
 
-```r
+``` r
+install.packages("rsmatch")
+```
+
+Alternatively, you can install the development version from [GitHub](https://github.com/) with:
+
+``` r
 # install.packages("devtools")
 devtools::install_github("skent259/rsmatch")
 ```
@@ -83,7 +89,7 @@ To cite package ‘rsmatch’ in publications use:
 
 A BibTeX entry for LaTeX users is
 
-```{bibtex}
+```bibtex
 @Manual{,
   title = {rsmatch: Matching Methods for Time-varying Observational Studies},
   author = {Sean Kent and Mitchell Paukner},

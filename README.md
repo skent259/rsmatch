@@ -26,7 +26,15 @@ Currently, we have methods for:
 
 ## Installation
 
-You can install the rsmatch package with
+You can install the released version of rsmatch from
+[CRAN](https://CRAN.R-project.org) with:
+
+``` r
+install.packages("rsmatch")
+```
+
+Alternatively, you can install the development version from
+[GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")

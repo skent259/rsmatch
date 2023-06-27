@@ -21,6 +21,10 @@
 #'   indicates whether the individual in the pair is considered as treatment
 #'   ("trt") or control ("all") in that pair.
 #'
+#' @references Lu, Bo. 2005. “Propensity Score Matching with Time-Dependent
+#'   Covariates.” Biometrics 61 (3): 721–28.
+#'   [doi:10.1111/j.1541-0420.2005.00356.x](https://doi.org/10.1111/j.1541-0420.2005.00356.x)
+#'
 #' @examples
 #' if (requireNamespace("survival", quietly = TRUE) &
 #'   requireNamespace("nbpMatching", quietly = TRUE)) {

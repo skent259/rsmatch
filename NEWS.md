@@ -1,4 +1,4 @@
-# rsmatch (development version)
+# rsmatch 0.2.0
 
 * Initial CRAN submission.
 * BREAKING: rename `coxph_match()` to `coxpsmatch()`

@@ -15,9 +15,8 @@ knitr::opts_chunk$set(
 
 # rsmatch
 <!-- badges: start -->
-[![CRAN status](https://www.r-pkg.org/badges/version/rsmatch)](https://CRAN.R-project.org/package=rsmatch)
+<!-- [![CRAN status](https://www.r-pkg.org/badges/version/rsmatch)](https://CRAN.R-project.org/package=rsmatch) -->
 [![R-CMD-check](https://github.com/skent259/rsmatch/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/skent259/rsmatch/actions/workflows/R-CMD-check.yaml)
-[![Travis build status](https://travis-ci.com/skent259/rsmatch.svg?branch=master)](https://travis-ci.com/skent259/rsmatch)
 <!-- badges: end -->
 
 The R package rsmatch implements various forms of **matching on time-varying observational studies** to help in causal inference.  The package utilized the idea of matching through a series of risk sets consisting of all subjects who are still "at risk" of treatment.  Subjects in this set treated at the next time point can be matched to controls who are not treated to avoid bias in estimating treatment effects. 
@@ -27,11 +26,17 @@ Currently, we have methods for:
 - **Balanced Risk Set Matching** with `brsmatch()`, based on the work of Li, Propert, and Rosenbaum (2001) 
 - **Propensity Score Matching with Time-Dependent Covariates** with `coxph_match()`, based on the work of Lu (2005)
 
-## Installation 
+## Installation
 
-You can install the rsmatch package with 
+You can install the released version of rsmatch from [CRAN](https://CRAN.R-project.org) with:
 
-```r
+``` r
+install.packages("rsmatch")
+```
+
+Alternatively, you can install the development version from [GitHub](https://github.com/) with:
+
+``` r
 # install.packages("devtools")
 devtools::install_github("skent259/rsmatch")
 ```
@@ -85,7 +90,7 @@ To cite package 'rsmatch' in publications use:
 
 A BibTeX entry for LaTeX users is
 
-```{bibtex}
+```bibtex
 @Manual{,
   title = {rsmatch: Matching Methods for Time-varying Observational Studies},
   author = {Sean Kent and Mitchell Paukner},

@@ -6,4 +6,5 @@ misc/
 ^data-raw$
 ^README\.Rmd$
 ^data/hrs_wealthshock\.rda$
+^cran-comments\.md$
 ^\.github$

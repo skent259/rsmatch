@@ -81,6 +81,11 @@ if (requireNamespace("survival", quietly = TRUE) &
 }
 
 }
+\references{
+Lu, Bo. 2005. "Propensity Score Matching with Time-Dependent
+Covariates." Biometrics 61 (3): 721-28.
+\doi{10.1111/j.1541-0420.2005.00356.x}
+}
 \author{
 Mitchell Paukner
 }

@@ -54,9 +54,9 @@
 #'   ("trt") or control ("all") in that pair.
 #'
 #' @references Li, Yunfei Paul, Kathleen J Propert, and Paul R Rosenbaum. 2001.
-#'   “Balanced Risk Set Matching.” Journal of the American Statistical
-#'   Association 96 (455): 870–82.
-#'   [doi:10.1198/016214501753208573](https://doi.org/10.1198/016214501753208573)
+#'   "Balanced Risk Set Matching." Journal of the American Statistical
+#'   Association 96 (455): 870-82.
+#'   \doi{10.1198/016214501753208573}
 #'
 #' @examples
 #' if (requireNamespace("Rglpk", quietly = TRUE)) {

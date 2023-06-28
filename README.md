@@ -4,12 +4,9 @@
 # rsmatch
 
 <!-- badges: start -->
+<!-- [![CRAN status](https://www.r-pkg.org/badges/version/rsmatch)](https://CRAN.R-project.org/package=rsmatch) -->
 
-[![CRAN
-status](https://www.r-pkg.org/badges/version/rsmatch)](https://CRAN.R-project.org/package=rsmatch)
 [![R-CMD-check](https://github.com/skent259/rsmatch/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/skent259/rsmatch/actions/workflows/R-CMD-check.yaml)
-[![Travis build
-status](https://travis-ci.com/skent259/rsmatch.svg?branch=master)](https://travis-ci.com/skent259/rsmatch)
 <!-- badges: end -->
 
 The R package rsmatch implements various forms of **matching on

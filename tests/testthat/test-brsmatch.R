@@ -402,3 +402,43 @@ test_that("`brsmatch()` works for different input values.", {
     options = list(time_lag = TRUE)
   )
 })
+
+
+test_that("brsmatch works when some input are NA", {
+  df1 <- data.frame(
+    id = rep(1:3, each = 3),
+    time = rep(1:3, 3),
+    trt_time = rep(c(2, 3, NA), each = 3),
+    X1 = c(2, 2, 2, 3, 3, 3, 9, 9, 9),
+    X2 = rep(c("a", "a", "b"), each = 3),
+    X3 = c(9, 4, 5, 6, 7, 2, 3, 4, 8),
+    X4 = c(8, 9, 4, 5, 6, 7, 2, 3, 4)
+  )
+
+  check_for_glpk()
+  pairs1 <- brsmatch(n_pairs = 1, data = df1)
+
+  expect_equal(nrow(pairs1), length(unique(df1$id)))
+
+  # Check when trt type "all" is removed"
+  df2 <- df1
+  df2$X3[5:6] <- NA
+
+  pairs2 <- brsmatch(n_pairs = 1, data = df2) %>%
+    expect_warning("should not have NA")
+
+  expect_equal(nrow(pairs2), length(unique(df1$id)))
+
+  # Check when trt type "trt" is removed"
+  df3 <- df1
+  df3$X1[1:3] <- NA
+
+  pairs3 <- brsmatch(n_pairs = 1, data = df3) %>%
+    expect_warning("should not have NA")
+
+  expect_equal(nrow(pairs3), length(unique(df1$id)))
+
+  # NOTE: this still isn't graceful if the NA removes too many rows, but we
+  # can't hold everyone's hand all the time...
+})
+

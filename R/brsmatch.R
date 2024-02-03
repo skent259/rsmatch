@@ -121,6 +121,20 @@ brsmatch <- function(
     data[[trt_time]] <- data[[trt_time]] - 1
   }
 
+  id_list <- unique(data[[id]]) # compute before any NA removal
+
+  # Remove NA rows except those in `trt_time` column, with a warning
+  na_action <- stats::na.omit(data[, setdiff(colnames(data), trt_time)])
+  na_rows <- attributes(na_action)$na.action
+  if (!is.null(na_rows)) {
+    rlang::warn(c(
+      "ID, time, and covariates should not have NA entries.",
+      i = paste("Removed", length(na_rows), "rows.")
+    ))
+    data <- data[-na_rows, ]
+  }
+
+
   if (!is.null(exact_match)) {
     data_split <- split(data, data[, exact_match, drop = FALSE])
     covariates <- setdiff(covariates, exact_match)
@@ -151,7 +165,7 @@ brsmatch <- function(
     )
   }
 
-  .output_pairs(matched_ids, id = id, id_list = unique(data[[id]]))
+  .output_pairs(matched_ids, id = id, id_list = id_list)
 }
 
 .brsmatch <- function(
@@ -168,27 +182,25 @@ brsmatch <- function(
   optimizer <- options$optimizer
   verbose <- options$verbose
 
-  if (verbose) {
-    rlang::inform("Computing distance from data...")
+  .print_if <- function(condition, message, ...) {
+    if (condition) {
+      rlang::inform(message, ...)
+    }
   }
+
+  .print_if(verbose, "Computing distance from data...")
   edges <- .compute_distances(data, id, time, trt_time, covariates, options)
 
   bal <- NULL
   if (balance) {
-    if (verbose) {
-      rlang::inform("Building balance columns from data...")
-    }
+    .print_if(verbose, "Building balance columns from data...")
     bal <- .balance_columns(data, id, time, trt_time, balance_covariates)
   }
 
-  if (verbose) {
-    rlang::inform("Constructing optimization model...")
-  }
+  .print_if(verbose, "Constructing optimization model...")
   model <- .rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
 
-  if (verbose) {
-    rlang::inform("Preparing to run optimization model")
-  }
+  .print_if(verbose, "Preparing to run optimization model")
   if (optimizer == "gurobi") {
     res <- gurobi::gurobi(model, params = list(OutputFlag = 1 * verbose))
     matches <- res$x[grepl("f", model$varnames)]
@@ -202,8 +214,6 @@ brsmatch <- function(
       max = model$max,
       control = list(verbose = verbose, presolve = TRUE)
     )
-    # res <- with(model, Rglpk::Rglpk_solve_LP(obj, mat, dir, rhs, types = types, max = max,
-    #                                          control = list(verbose = verbose, presolve = TRUE)))
     matches <- res$solution[grepl("f", model$varnames)]
   }
 

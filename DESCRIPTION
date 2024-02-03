@@ -1,6 +1,6 @@
 Package: rsmatch
 Title: Matching Methods for Time-Varying Observational Studies
-Version: 0.2.0.9000
+Version: 0.2.0.9001
 Authors@R: c(
     person("Sean", "Kent", , "skent259@gmail.com", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0001-8697-9069")),

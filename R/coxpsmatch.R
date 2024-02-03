@@ -73,6 +73,19 @@ coxpsmatch <- function(
     data[[trt_time]] <- as.numeric(data[[trt_time]])
   }
 
+  id_list <- unique(data[[id]]) # compute before any NA removal
+
+  # Remove NA rows except those in `trt_time` column, with a warning
+  na_action <- na.omit(data[, setdiff(colnames(data), trt_time)])
+  na_rows <- attributes(na_action)$na.action
+  if (!is.null(na_rows)) {
+    rlang::warn(c(
+      "ID, time, and covariates should not have NA entries.",
+      i = paste("Removed", length(na_rows), "rows.")
+    ))
+    data <- data[-na_rows, ]
+  }
+
   if (!is.null(exact_match)) {
     balance_split <- split(data, data[, exact_match, drop = FALSE])
     matches <- NULL
@@ -94,7 +107,7 @@ coxpsmatch <- function(
   }
 
   colnames(matches)[1:2] <- c("trt_id", "all_id")
-  return(.output_pairs(matches, id = id, id_list = unique(data[[id]])))
+  return(.output_pairs(matches, id = id, id_list = id_list))
 }
 
 #' Propensity Score Matching with Time-Dependent Covariates

@@ -1,4 +1,5 @@
 # rsmatch (development version)
+* Update `brsmatch()` and `coxpsmatch()` to handle NA rows via removing them
 
 # rsmatch 0.2.0
 

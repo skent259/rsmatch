@@ -124,7 +124,7 @@ brsmatch <- function(
   id_list <- unique(data[[id]]) # compute before any NA removal
 
   # Remove NA rows except those in `trt_time` column, with a warning
-  na_action <- na.omit(data[, setdiff(colnames(data), trt_time)])
+  na_action <- stats::na.omit(data[, setdiff(colnames(data), trt_time)])
   na_rows <- attributes(na_action)$na.action
   if (!is.null(na_rows)) {
     rlang::warn(c(

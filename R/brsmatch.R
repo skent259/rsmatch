@@ -11,9 +11,9 @@
 #'
 #' Note that when using exact matching, the `n_pairs` are split roughly in
 #' proportion to the number of treated subjects in each exact matching group.
-#' This has a possibility of failing  when `n_pairs` is large.  If this happens
-#' to you, we suggest manually performing exact matching, for example with
-#' `split()`, and selecting `n_pairs` for each group interactively.
+#' If you would like to control `n_pairs` exactly, we suggest manually
+#' performing exact matching, for example with `split()`, and selecting
+#' `n_pairs` for each group interactively.
 #'
 #' @param n_pairs The number of pairs desired from matching.
 #' @param data A data.frame or similar containing columns matching the `id,
@@ -201,21 +201,11 @@ brsmatch <- function(
   model <- .rsm_optimization_model(n_pairs, edges, bal, optimizer, verbose, balance)
 
   .print_if(verbose, "Preparing to run optimization model")
-  if (optimizer == "gurobi") {
-    res <- gurobi::gurobi(model, params = list(OutputFlag = 1 * verbose))
-    matches <- res$x[grepl("f", model$varnames)]
-  } else if (optimizer == "glpk") {
-    res <- Rglpk::Rglpk_solve_LP(
-      model$obj,
-      model$mat,
-      model$dir,
-      model$rhs,
-      types = model$types,
-      max = model$max,
-      control = list(verbose = verbose, presolve = TRUE)
-    )
-    matches <- res$solution[grepl("f", model$varnames)]
-  }
+  res <- .solve_or_reduce_pairs(n_pairs, model, optimizer, verbose)
+  matches <- switch(optimizer,
+    "gurobi" = res$x[grepl("f", model$varnames)],
+    "glpk" = res$solution[grepl("f", model$varnames)]
+  )
 
   matched_ids <- edges[matches == 1, c("trt_id", "all_id"), drop = FALSE]
   return(matched_ids)
@@ -591,4 +581,64 @@ brsmatch <- function(
     ))
   }
   return(model)
+}
+
+
+#' Solve brsmatch model even if too many pairs specified
+#'
+#' If the `n_pairs` is too large, the model will be infeasible, and will return
+#' a status code indicating this. This function will iteratively reduce the
+#' number of pairs until the model becomes solvable, then will return the
+#' solution with a warning.
+#'
+#' NOTE: gurobi functionality is untested, as I have since lost my license.
+#' Code is based on the documentation at
+#' https://www.gurobi.com/documentation/current/refman/r_grb.html
+#'
+#' @inheritParams brsmatch
+#' @param model The model output from `.rsm_optimization_model()`
+#'
+#' @return The result from [Rglpk::Rglpk_solve_LP] after possible n_pair
+#'   reduction.
+#'
+#' @noRd
+.solve_or_reduce_pairs <- function(n_pairs, model, optimizer, verbose) {
+  n_pairs_solve <- n_pairs
+
+  while (TRUE) {
+    if (optimizer == "gurobi") {
+      res <- gurobi::gurobi(model, params = list(OutputFlag = 1 * verbose))
+    } else if (optimizer == "glpk") {
+      res <- Rglpk::Rglpk_solve_LP(
+        model$obj,
+        model$mat,
+        model$dir,
+        model$rhs,
+        types = model$types,
+        max = model$max,
+        control = list(verbose = verbose, presolve = TRUE)
+      )
+    }
+    solved <- switch(optimizer,
+      "gurobi" = res$status == "OPTIMAL",
+      "glpk" = res$status == 0,
+    )
+    if (solved) {
+      break
+    }
+
+    n_pairs_solve <- n_pairs_solve - 1
+    # n pairs only appears in the first two model RHS constraints
+    model$rhs[1:2] <- c(n_pairs_solve, -n_pairs_solve)
+  }
+
+  if (n_pairs_solve != n_pairs) {
+    rlang::warn(
+      paste(
+        "Number of pairs reduced from", n_pairs, "to",
+        n_pairs_solve, "to create a solveable model."
+      )
+    )
+  }
+  return(res)
 }

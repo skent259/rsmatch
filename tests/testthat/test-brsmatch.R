@@ -442,3 +442,49 @@ test_that("brsmatch works when some input are NA", {
   # can't hold everyone's hand all the time...
 })
 
+
+test_that("brsmatch works when too many pairs specified (#11)", {
+  brsmatch_on_oasis <- function(n_pairs, ...) {
+    brsmatch(
+      n_pairs, oasis,
+      id = "subject_id", time = "visit", trt_time = "time_of_ad",
+      ...
+    )
+  }
+
+  check_for_glpk()
+
+  # With `balance = FALSE`
+  too_many <- brsmatch_on_oasis(n_pairs = 14, balance = FALSE) %>%
+    expect_warning("Number of pairs reduced")
+  enough <- brsmatch_on_oasis(n_pairs = 13, balance = FALSE)
+  expect_equal(too_many, enough)
+
+  # Way too many pairs
+  way_too_many <- brsmatch_on_oasis(n_pairs = 55, balance = FALSE) %>%
+    expect_warning("Number of pairs reduced")
+  expect_equal(way_too_many, too_many)
+
+  # With `balance = TRUE`
+  too_many <- brsmatch_on_oasis(n_pairs = 14, balance = TRUE) %>%
+    expect_warning("Number of pairs reduced")
+  enough <- brsmatch_on_oasis(n_pairs = 13, balance = TRUE)
+  expect_equal(too_many, enough)
+
+  # With `exact_match` variable
+  too_many <- brsmatch_on_oasis(n_pairs = 14, balance = FALSE, exact_match = c("m_f")) %>%
+    expect_warning("Number of pairs reduced")
+  enough <- brsmatch_on_oasis(n_pairs = 13, balance = FALSE, exact_match = c("m_f"))
+  expect_equal(too_many, enough)
+  # The warning message isn't ideal, but its okay for now
+
+
+  # With gurobi
+  check_for_gurobi()
+
+  too_many <- brsmatch_on_oasis(n_pairs = 14, balance = FALSE, options = list(optimizer = "gurobi")) %>%
+    expect_warning("Number of pairs reduced")
+  enough <- brsmatch_on_oasis(n_pairs = 13, balance = FALSE, options = list(optimizer = "gurobi"))
+  expect_equal(too_many, enough)
+
+})

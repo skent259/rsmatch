@@ -1,5 +1,6 @@
 # rsmatch (development version)
 * Update `brsmatch()` and `coxpsmatch()` to handle NA rows via removing them
+* Fix `brsmatch()` to iteratively reduce the number of pairs if too many are specified
 
 # rsmatch 0.2.0
 

@@ -80,9 +80,9 @@ individual is matched to one other individual.
 \details{
 Note that when using exact matching, the \code{n_pairs} are split roughly in
 proportion to the number of treated subjects in each exact matching group.
-This has a possibility of failing  when \code{n_pairs} is large.  If this happens
-to you, we suggest manually performing exact matching, for example with
-\code{split()}, and selecting \code{n_pairs} for each group interactively.
+If you would like to control \code{n_pairs} exactly, we suggest manually
+performing exact matching, for example with \code{split()}, and selecting
+\code{n_pairs} for each group interactively.
 }
 \examples{
 if (requireNamespace("Rglpk", quietly = TRUE)) {

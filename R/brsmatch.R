@@ -11,9 +11,9 @@
 #'
 #' Note that when using exact matching, the `n_pairs` are split roughly in
 #' proportion to the number of treated subjects in each exact matching group.
-#' This has a possibility of failing  when `n_pairs` is large.  If this happens
-#' to you, we suggest manually performing exact matching, for example with
-#' `split()`, and selecting `n_pairs` for each group interactively.
+#' If you would like to control `n_pairs` exactly, we suggest manually
+#' performing exact matching, for example with `split()`, and selecting
+#' `n_pairs` for each group interactively.
 #'
 #' @param n_pairs The number of pairs desired from matching.
 #' @param data A data.frame or similar containing columns matching the `id,

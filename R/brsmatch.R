@@ -202,8 +202,7 @@ brsmatch <- function(
 
   .print_if(verbose, "Preparing to run optimization model")
   res <- .solve_or_reduce_pairs(n_pairs, model, optimizer, verbose)
-  matches <- switch(
-    optimizer,
+  matches <- switch(optimizer,
     "gurobi" = res$x[grepl("f", model$varnames)],
     "glpk" = res$solution[grepl("f", model$varnames)]
   )
@@ -635,8 +634,10 @@ brsmatch <- function(
 
   if (n_pairs_solve != n_pairs) {
     rlang::warn(
-      paste("Number of pairs reduced from", n_pairs, "to",
-            n_pairs_solve, "to create a solveable model.")
+      paste(
+        "Number of pairs reduced from", n_pairs, "to",
+        n_pairs_solve, "to create a solveable model."
+      )
     )
   }
   return(res)

@@ -1,0 +1,16 @@
+url: https://skent259.github.io/rsmatch/
+template:
+  bootstrap: 5
+
+reference:
+- title: "Matching methods"
+  contents:
+  - brsmatch
+  - coxpsmatch
+- title: "Built in data set"
+  contents:
+  - oasis
+
+authors:
+  Sean Kent:
+    href: "https://github.com/skent259"

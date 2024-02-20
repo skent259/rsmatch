@@ -1,6 +1,6 @@
 Package: rsmatch
 Title: Matching Methods for Time-Varying Observational Studies
-Version: 0.2.0.9002
+Version: 0.2.0.9003
 Authors@R: c(
     person("Sean", "Kent", , "skent259@gmail.com", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0001-8697-9069")),
@@ -19,7 +19,7 @@ Description: Implements popular methods for matching in time-varying
     speed; the 'gurobi' R package and associated software can be
     downloaded from <https://www.gurobi.com> after obtaining a license.
 License: MIT + file LICENSE
-URL: https://github.com/skent259/rsmatch
+URL: https://skent259.github.io/rsmatch/, https://github.com/skent259/rsmatch
 BugReports: https://github.com/skent259/rsmatch/issues
 Depends: 
     R (>= 2.10)

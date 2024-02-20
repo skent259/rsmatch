@@ -23,7 +23,7 @@ Currently, we have methods for:
 - **Balanced Risk Set Matching** with `brsmatch()`, based on the work of
   Li, Propert, and Rosenbaum (2001)
 - **Propensity Score Matching with Time-Dependent Covariates** with
-  `coxph_match()`, based on the work of Lu (2005)
+  `coxpsmatch()`, based on the work of Lu (2005)
 
 ## Installation
 

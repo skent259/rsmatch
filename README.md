@@ -120,9 +120,9 @@ covariates.
 
 To cite package ‘rsmatch’ in publications use:
 
-Kent S, Paukner M (2023). *rsmatch: Matching Methods for Time-varying
-Observational Studies*. R package version 0.2.0,
-<https://github.com/skent259/rsmatch>.
+Kent S, Paukner M (2024). *rsmatch: Matching Methods for Time-varying
+Observational Studies*. R package version 0.2.1,
+<https://cran.r-project.org/package=rsmatch>.
 
 A BibTeX entry for LaTeX users is
 
@@ -130,9 +130,9 @@ A BibTeX entry for LaTeX users is
 @Manual{,
   title = {rsmatch: Matching Methods for Time-varying Observational Studies},
   author = {Sean Kent and Mitchell Paukner},
-  year = {2023},
-  note = {R package version 0.2.0},
-  url = {https://github.com/skent259/rsmatch},
+  year = {2024},
+  note = {R package version 0.2.1},
+  url = {https://cran.r-project.org/package=rsmatch},
 }
 ```
 

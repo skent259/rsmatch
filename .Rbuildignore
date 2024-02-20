@@ -12,3 +12,4 @@ misc/
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+^revdep$

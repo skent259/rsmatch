@@ -3,7 +3,7 @@ pkgdown: 2.0.7
 pkgdown_sha: ~
 articles:
   risk-set-matching-with-rsmatch: risk-set-matching-with-rsmatch.html
-last_built: 2024-02-20T04:44Z
+last_built: 2024-02-20T17:53Z
 urls:
   reference: https://skent259.github.io/rsmatch/reference
   article: https://skent259.github.io/rsmatch/articles
